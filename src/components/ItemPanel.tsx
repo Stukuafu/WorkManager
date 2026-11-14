@@ -16,6 +16,7 @@ interface ItemPanelProps {
   items: WorkItem[];
   onOpenItem(id: string): void;
   onAddTask(storyId: string, title: string): Promise<void>;
+  onLinkTask(storyId: string, itemId: string): Promise<void>;
   onStatusChange(item: WorkItem, status: Status): Promise<void>;
   loadHistory(id: string): Promise<StatusChange[]>;
   loadNotes(itemId: string): Promise<Note[]>;
@@ -34,6 +35,7 @@ export function ItemPanel({
   items,
   onOpenItem,
   onAddTask,
+  onLinkTask,
   onStatusChange,
   loadHistory,
   loadNotes,
@@ -100,6 +102,7 @@ export function ItemPanel({
           items={items}
           onOpen={onOpenItem}
           onAddTask={onAddTask}
+          onLinkTask={onLinkTask}
           onStatusChange={onStatusChange}
         />
       )}

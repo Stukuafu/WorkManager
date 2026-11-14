@@ -207,6 +207,9 @@ export default function App() {
           onAddTask={async (storyId, title) => {
             await createItem({ title, type: "task", parentId: storyId });
           }}
+          onLinkTask={async (storyId, itemId) => {
+            await updateItem(itemId, { parentId: storyId });
+          }}
           onStatusChange={changeStatus}
           loadHistory={loadHistory}
           loadNotes={loadNotes}

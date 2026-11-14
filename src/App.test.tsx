@@ -216,4 +216,72 @@ describe("App projects flow", () => {
     await user.click(screen.getByRole("button", { name: "Save changes" }));
     expect(await screen.findByText(/still has 1 task/)).toBeInTheDocument();
   });
+
+  async function newProject(user: ReturnType<typeof userEvent.setup>) {
+    await user.click(await screen.findByRole("button", { name: "New project" }));
+    await user.type(screen.getByLabelText("Name"), "Work Manager");
+    await user.click(screen.getByRole("button", { name: "Create project" }));
+  }
+
+  async function newItem(user: ReturnType<typeof userEvent.setup>, title: string, extra: { type?: string; priority?: string } = {}) {
+    await user.click(await screen.findByRole("button", { name: "+ New item" }));
+    await user.type(screen.getByLabelText("Title"), title);
+    if (extra.type) await user.selectOptions(screen.getByLabelText("Type"), extra.type);
+    if (extra.priority) await user.selectOptions(screen.getByLabelText("Priority"), extra.priority);
+    await user.click(screen.getByRole("button", { name: "Create item" }));
+  }
+
+  it("sorts the list by clicking column headers", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await newProject(user);
+    await newItem(user, "Banana", { priority: "low" });
+    await newItem(user, "Apple", { priority: "critical" });
+    await newItem(user, "Cherry", { priority: "high" });
+
+    const titles = () =>
+      within(screen.getByRole("table")).getAllByRole("row").slice(1).map((r) => within(r).getAllByRole("button")[0].textContent);
+    const header = (name: RegExp) => screen.getByRole("columnheader", { name });
+
+    // Newest first by default, and the Key column says so.
+    expect(titles()).toEqual(["Cherry", "Apple", "Banana"]);
+    expect(header(/Key/)).toHaveAttribute("aria-sort", "descending");
+
+    // Priority starts with the most important first, then flips.
+    await user.click(screen.getByRole("button", { name: /Priority/ }));
+    expect(titles()).toEqual(["Apple", "Cherry", "Banana"]);
+    expect(header(/Priority/)).toHaveAttribute("aria-sort", "descending");
+    expect(header(/Key/)).not.toHaveAttribute("aria-sort");
+    await user.click(screen.getByRole("button", { name: /Priority/ }));
+    expect(titles()).toEqual(["Banana", "Cherry", "Apple"]);
+    expect(header(/Priority/)).toHaveAttribute("aria-sort", "ascending");
+
+    // Title is A to Z first.
+    await user.click(screen.getByRole("button", { name: /Title/ }));
+    expect(titles()).toEqual(["Apple", "Banana", "Cherry"]);
+
+    // Sorting works together with filters.
+    await user.selectOptions(screen.getByLabelText("Filter by priority"), "critical");
+    expect(titles()).toEqual(["Apple"]);
+  });
+
+  it("adds an existing task to a story from the story panel", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await newProject(user);
+    await newItem(user, "Loose task");
+    await newItem(user, "Checkout", { type: "story" });
+
+    await user.click(await screen.findByRole("button", { name: "Checkout" }));
+    const dialog = await screen.findByRole("dialog");
+    await user.selectOptions(within(dialog).getByLabelText("Add an existing item"), "WM-1 · Loose task");
+    await user.click(within(dialog).getByRole("button", { name: "Add to story" }));
+
+    expect(await within(dialog).findByRole("heading", { name: "Tasks (1)" })).toBeInTheDocument();
+    // Nothing left to add, so the picker disappears.
+    expect(within(dialog).queryByLabelText("Add an existing item")).not.toBeInTheDocument();
+    await user.click(within(dialog).getByRole("button", { name: "Close panel" }));
+    expect(screen.getByRole("progressbar", { name: "Progress of WM-2" })).toBeInTheDocument();
+    expect(screen.getByText("Part of")).toBeInTheDocument();
+  });
 });

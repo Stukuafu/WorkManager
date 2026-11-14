@@ -15,9 +15,9 @@ npm run build   # type-check and build
 
 - Projects with a short key; items are numbered `KEY-1`, `KEY-2`, ... and keys are never reused
 - Fixed workflow: To Do, In Progress, In Review, Done
-- List view with search and filters, and a drag-and-drop board (mouse, touch and keyboard)
+- List view with search, filters and sortable columns (click a header; click again to reverse), and a drag-and-drop board (mouse, touch and keyboard)
 - Detail panel with status history, dates and time to complete
-- Stories with tasks: add tasks to a story (or link an existing task or bug to one), with a progress bar, parent chips, and a filter by story
+- Stories with tasks: add new tasks to a story, or pick an existing task or bug to link to it, with a progress bar, parent chips, and a filter by story
 - Notes on each item (add, edit, delete), with note counts on the list and board
 - Backup: export and import all data as JSON, including notes (data lives in this browser only). Backups from earlier versions still import
 - Shortcuts: `C` new item, `/` search

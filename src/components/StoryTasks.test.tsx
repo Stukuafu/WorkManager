@@ -39,6 +39,7 @@ function setup(overrides: Partial<Parameters<typeof StoryTasks>[0]> = {}) {
     items,
     onOpen: vi.fn(),
     onAddTask: vi.fn().mockResolvedValue(undefined),
+    onLinkTask: vi.fn().mockResolvedValue(undefined),
     onStatusChange: vi.fn().mockResolvedValue(undefined),
     ...overrides,
   };
@@ -92,5 +93,46 @@ describe("StoryTasks", () => {
     expect(props.onOpen).toHaveBeenCalledWith("i3");
     await user.selectOptions(screen.getByLabelText("Status of WM-3"), "in_review");
     expect(props.onStatusChange).toHaveBeenCalledWith(expect.objectContaining({ id: "i3" }), "in_review");
+  });
+
+  describe("adding an existing item", () => {
+    it("offers only tasks and bugs that have no story yet", () => {
+      setup({
+        items: [
+          ...items,
+          item(5, "story", { title: "Other story" }),
+          item(6, "task", { title: "Belongs elsewhere", parentId: "i5" }),
+        ],
+      });
+      const options = within(screen.getByLabelText("Add an existing item"))
+        .getAllByRole("option")
+        .map((o) => o.textContent);
+      expect(options).toEqual(["Choose a task or bug…", "WM-4 · Unrelated"]);
+    });
+
+    it("links the chosen item and resets the picker", async () => {
+      const user = userEvent.setup();
+      const props = setup();
+      await user.selectOptions(screen.getByLabelText("Add an existing item"), "WM-4 · Unrelated");
+      await user.click(screen.getByRole("button", { name: "Add to story" }));
+      expect(props.onLinkTask).toHaveBeenCalledWith("i1", "i4");
+      expect(screen.getByLabelText("Add an existing item")).toHaveValue("");
+    });
+
+    it("asks for a choice, and shows linking errors", async () => {
+      const user = userEvent.setup();
+      const props = setup({ onLinkTask: vi.fn().mockRejectedValue(new Error("Nope")) });
+      await user.click(screen.getByRole("button", { name: "Add to story" }));
+      expect(screen.getByRole("alert")).toHaveTextContent("Choose an item");
+      expect(props.onLinkTask).not.toHaveBeenCalled();
+      await user.selectOptions(screen.getByLabelText("Add an existing item"), "WM-4 · Unrelated");
+      await user.click(screen.getByRole("button", { name: "Add to story" }));
+      expect(await screen.findByRole("alert")).toHaveTextContent("Nope");
+    });
+
+    it("is hidden when there is nothing to add", () => {
+      setup({ items: items.filter((i) => i.id !== "i4") });
+      expect(screen.queryByLabelText("Add an existing item")).not.toBeInTheDocument();
+    });
   });
 });

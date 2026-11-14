@@ -35,6 +35,7 @@ function renderPanel(overrides: Partial<Parameters<typeof ItemPanel>[0]> = {}) {
     items: [item],
     onOpenItem: vi.fn(),
     onAddTask: vi.fn().mockResolvedValue(undefined),
+    onLinkTask: vi.fn().mockResolvedValue(undefined),
     onStatusChange: vi.fn().mockResolvedValue(undefined),
     loadHistory: vi.fn().mockResolvedValue(history),
     loadNotes: vi.fn().mockResolvedValue([]),

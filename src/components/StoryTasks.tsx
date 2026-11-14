@@ -14,15 +14,30 @@ interface StoryTasksProps {
   items: WorkItem[];
   onOpen(id: string): void;
   onAddTask(storyId: string, title: string): Promise<void>;
+  /** Link an existing task or bug to this story. */
+  onLinkTask(storyId: string, itemId: string): Promise<void>;
   onStatusChange(item: WorkItem, status: Status): Promise<void>;
 }
 
 /** The tasks inside a story: progress, a quick-add box and a list you can open or advance. */
-export function StoryTasks({ story, projectKey, items, onOpen, onAddTask, onStatusChange }: StoryTasksProps) {
+export function StoryTasks({
+  story,
+  projectKey,
+  items,
+  onOpen,
+  onAddTask,
+  onLinkTask,
+  onStatusChange,
+}: StoryTasksProps) {
   const id = useId();
   const [title, setTitle] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [linkId, setLinkId] = useState("");
+  // Tasks and bugs that do not belong to any story yet.
+  const available = items
+    .filter((i) => i.type !== "story" && !i.parentId)
+    .sort((a, b) => a.number - b.number);
   const tasks = items.filter((i) => i.parentId === story.id).sort((a, b) => a.number - b.number);
   const progress = storyProgress(items, story.id);
 
@@ -44,6 +59,12 @@ export function StoryTasks({ story, projectKey, items, onOpen, onAddTask, onStat
     event.preventDefault();
     if (!title.trim()) return setError("Enter a title for the task.");
     if (await guarded(() => onAddTask(story.id, title))) setTitle("");
+  }
+
+  async function handleLink(event: FormEvent) {
+    event.preventDefault();
+    if (!linkId) return setError("Choose an item to add.");
+    if (await guarded(() => onLinkTask(story.id, linkId))) setLinkId("");
   }
 
   return (
@@ -76,6 +97,36 @@ export function StoryTasks({ story, projectKey, items, onOpen, onAddTask, onStat
         </div>
       </form>
 
+      {available.length > 0 && (
+        <form onSubmit={(e) => void handleLink(e)} className="mt-4">
+          <label htmlFor={`${id}-link`} className="mb-1 block text-sm font-bold">
+            Add an existing item
+          </label>
+          <div className="flex gap-2">
+            <select
+              id={`${id}-link`}
+              value={linkId}
+              onChange={(e) => setLinkId(e.target.value)}
+              className={inputClass}
+            >
+              <option value="">Choose a task or bug…</option>
+              {available.map((i) => (
+                <option key={i.id} value={i.id}>
+                  {formatItemKey(projectKey, i.number)} · {i.title}
+                </option>
+              ))}
+            </select>
+            <button
+              type="submit"
+              disabled={busy}
+              className="shrink-0 rounded-md border border-brand-red px-3 py-2 text-sm font-bold text-brand-red transition hover:bg-brand-red hover:text-white disabled:opacity-60"
+            >
+              Add to story
+            </button>
+          </div>
+        </form>
+      )}
+
       {error && (
         <p role="alert" className="mt-3 text-sm font-bold text-brand-red">
           {error}
@@ -83,7 +134,7 @@ export function StoryTasks({ story, projectKey, items, onOpen, onAddTask, onStat
       )}
 
       {tasks.length === 0 ? (
-        <p className="mt-4 text-sm">No tasks yet. Add one above, or choose this story as the parent of an existing item.</p>
+        <p className="mt-4 text-sm">No tasks yet. Add a new one, or link an existing item.</p>
       ) : (
         <ul className="mt-4 space-y-2">
           {tasks.map((task) => {

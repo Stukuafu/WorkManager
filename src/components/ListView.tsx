@@ -8,6 +8,7 @@ import {
 } from "../domain/filter";
 import { storiesIn, storyProgress } from "../domain/hierarchy";
 import { formatItemKey } from "../domain/keys";
+import { DEFAULT_SORT, nextSort, type SortField, type SortState, sortItems } from "../domain/sort";
 import type { Status, WorkItem } from "../domain/types";
 import {
   ITEM_TYPES,
@@ -30,17 +31,27 @@ interface ListViewProps {
   onCreate(): void;
 }
 
+const COLUMNS: { field: SortField; label: string }[] = [
+  { field: "key", label: "Key" },
+  { field: "title", label: "Title" },
+  { field: "type", label: "Type" },
+  { field: "priority", label: "Priority" },
+  { field: "status", label: "Status" },
+  { field: "due", label: "Due" },
+];
+
 const filterSelect =
   "rounded-md border border-line bg-white px-2 py-1.5 text-sm text-ink hover:border-brand-gray";
 
 export function ListView({ projectKey, items, noteCounts, onOpen, onStatusChange, onCreate }: ListViewProps) {
   const [filters, setFilters] = useState<ItemFilters>(DEFAULT_FILTERS);
+  const [sort, setSort] = useState<SortState>(DEFAULT_SORT);
   const labels = useMemo(() => collectLabels(items), [items]);
   const stories = useMemo(() => storiesIn(items), [items]);
   const byId = useMemo(() => new Map(items.map((i) => [i.id, i])), [items]);
   const visible = useMemo(
-    () => filterItems(items, filters, projectKey).sort((a, b) => b.number - a.number),
-    [items, filters, projectKey],
+    () => sortItems(filterItems(items, filters, projectKey), sort),
+    [items, filters, projectKey, sort],
   );
 
   function set<K extends keyof ItemFilters>(key: K, value: ItemFilters[K]) {
@@ -168,12 +179,30 @@ export function ListView({ projectKey, items, noteCounts, onOpen, onStatusChange
           <table className="w-full text-left text-sm">
             <thead className="border-b border-line text-xs uppercase tracking-wide">
               <tr>
-                <th className="px-4 py-3">Key</th>
-                <th className="px-4 py-3">Title</th>
-                <th className="px-4 py-3">Type</th>
-                <th className="px-4 py-3">Priority</th>
-                <th className="px-4 py-3">Status</th>
-                <th className="px-4 py-3">Due</th>
+                {COLUMNS.map(({ field, label }) => {
+                  const active = sort.field === field;
+                  return (
+                    <th
+                      key={field}
+                      scope="col"
+                      aria-sort={active ? (sort.direction === "asc" ? "ascending" : "descending") : undefined}
+                      className="px-4 py-3"
+                    >
+                      <button
+                        type="button"
+                        onClick={() => setSort((current) => nextSort(current, field))}
+                        className={`inline-flex items-center gap-1 rounded uppercase tracking-wide hover:text-brand-red ${
+                          active ? "font-bold text-ink" : ""
+                        }`}
+                      >
+                        {label}
+                        <span aria-hidden="true" className="w-3 text-brand-red">
+                          {active ? (sort.direction === "asc" ? "▲" : "▼") : ""}
+                        </span>
+                      </button>
+                    </th>
+                  );
+                })}
               </tr>
             </thead>
             <tbody>
