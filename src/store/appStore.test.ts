@@ -51,9 +51,9 @@ describe("app store projects", () => {
     const a = await store.getState().createProject({ key: "AA", name: "A" });
     const b = await store.getState().createProject({ key: "BB", name: "B" });
     expect(store.getState().activeProjectId).toBe(b.id);
-    store.getState().selectProject(a.id);
+    await store.getState().selectProject(a.id);
     expect(store.getState().activeProjectId).toBe(a.id);
-    store.getState().selectProject("missing");
+    await store.getState().selectProject("missing");
     expect(store.getState().activeProjectId).toBe(a.id);
   });
 
@@ -62,10 +62,58 @@ describe("app store projects", () => {
     await first.getState().init();
     const a = await first.getState().createProject({ key: "AA", name: "A" });
     await first.getState().createProject({ key: "BB", name: "B" });
-    first.getState().selectProject(a.id);
+    await first.getState().selectProject(a.id);
 
     const second = createAppStore(repo);
     await second.getState().init();
     expect(second.getState().activeProjectId).toBe(a.id);
+  });
+});
+
+describe("app store items", () => {
+  it("creates, updates and deletes items in the active project", async () => {
+    const store = createAppStore(repo);
+    await store.getState().init();
+    await store.getState().createProject({ key: "WM", name: "Work Manager" });
+
+    const a = await store.getState().createItem({ title: "A" });
+    const b = await store.getState().createItem({ title: "B" });
+    expect([a.number, b.number]).toEqual([1, 2]);
+    expect(store.getState().projects[0].nextNumber).toBe(3);
+
+    await store.getState().updateItem(a.id, { status: "done" });
+    expect(store.getState().items.find((i) => i.id === a.id)?.status).toBe("done");
+
+    await store.getState().deleteItem(b.id);
+    expect(store.getState().items.map((i) => i.id)).toEqual([a.id]);
+  });
+
+  it("requires an active project", async () => {
+    const store = createAppStore(repo);
+    await store.getState().init();
+    await expect(store.getState().createItem({ title: "A" })).rejects.toThrow(/No active project/);
+  });
+
+  it("loads the items of the selected project and keeps projects separate", async () => {
+    const store = createAppStore(repo);
+    await store.getState().init();
+    const a = await store.getState().createProject({ key: "AA", name: "A" });
+    await store.getState().createItem({ title: "in A" });
+    await store.getState().createProject({ key: "BB", name: "B" });
+    expect(store.getState().items).toEqual([]);
+
+    await store.getState().selectProject(a.id);
+    expect(store.getState().items.map((i) => i.title)).toEqual(["in A"]);
+  });
+
+  it("restores items for the active project on init", async () => {
+    const first = createAppStore(repo);
+    await first.getState().init();
+    await first.getState().createProject({ key: "WM", name: "Work Manager" });
+    await first.getState().createItem({ title: "kept" });
+
+    const second = createAppStore(repo);
+    await second.getState().init();
+    expect(second.getState().items.map((i) => i.title)).toEqual(["kept"]);
   });
 });

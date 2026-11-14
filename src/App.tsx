@@ -2,15 +2,11 @@ import { useEffect, useState } from "react";
 import { Balloon } from "./components/Balloon";
 import { NewProjectDialog } from "./components/NewProjectDialog";
 import { ProjectSwitcher } from "./components/ProjectSwitcher";
-import { STATUSES, STATUS_LABELS } from "./domain/workflow";
+import { BoardPreview } from "./components/BoardPreview";
+import { ItemDialog } from "./components/ItemDialog";
+import { ListView } from "./components/ListView";
+import type { WorkItem } from "./domain/types";
 import { selectActiveProject, useAppStore } from "./store/appStore";
-
-const STATUS_TINT = {
-  todo: "bg-tint-blue",
-  in_progress: "bg-tint-yellow",
-  in_review: "bg-tint-teal",
-  done: "bg-tint-green",
-} as const;
 
 export default function App() {
   const loaded = useAppStore((s) => s.loaded);
@@ -19,8 +15,15 @@ export default function App() {
   const activeProject = useAppStore(selectActiveProject);
   const init = useAppStore((s) => s.init);
   const createProject = useAppStore((s) => s.createProject);
+  const items = useAppStore((s) => s.items);
   const selectProject = useAppStore((s) => s.selectProject);
+  const createItem = useAppStore((s) => s.createItem);
+  const updateItem = useAppStore((s) => s.updateItem);
+  const deleteItem = useAppStore((s) => s.deleteItem);
   const [creating, setCreating] = useState(false);
+  const [itemDialog, setItemDialog] = useState<{ item?: WorkItem } | null>(null);
+  const [view, setView] = useState<"list" | "board">("list");
+  const [actionError, setActionError] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -82,21 +85,83 @@ export default function App() {
               </span>
               <h2 className="text-xl text-ink">{activeProject.name}</h2>
             </div>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              {STATUSES.map((status) => (
-                <section key={status} className="rounded-card bg-white p-4 shadow-sm">
-                  <div
-                    className={`mb-3 rounded-md px-3 py-1.5 text-sm font-bold text-ink ${STATUS_TINT[status]}`}
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <div role="tablist" aria-label="View" className="flex gap-1 rounded-md bg-white p-1 shadow-sm">
+                {(["list", "board"] as const).map((v) => (
+                  <button
+                    key={v}
+                    type="button"
+                    role="tab"
+                    aria-selected={view === v}
+                    onClick={() => setView(v)}
+                    className={`rounded px-3 py-1.5 text-sm font-bold capitalize transition ${
+                      view === v ? "bg-brand-red text-white" : "hover:bg-surface"
+                    }`}
                   >
-                    {STATUS_LABELS[status]}
-                  </div>
-                  <p className="text-sm">No items yet</p>
-                </section>
-              ))}
+                    {v}
+                  </button>
+                ))}
+              </div>
+              <button
+                type="button"
+                onClick={() => setItemDialog({})}
+                className="rounded-md bg-brand-red px-4 py-2 text-sm font-bold text-white transition hover:bg-brand-red-dark"
+              >
+                + New item
+              </button>
             </div>
+
+            {actionError && (
+              <p role="alert" className="mb-3 text-sm font-bold text-brand-red">
+                {actionError}
+              </p>
+            )}
+
+            {view === "list" ? (
+              <ListView
+                key={activeProject.id}
+                projectKey={activeProject.key}
+                items={items}
+                onOpen={(item) => setItemDialog({ item })}
+                onCreate={() => setItemDialog({})}
+                onStatusChange={(item, status) => {
+                  setActionError(null);
+                  updateItem(item.id, { status }).catch((e: unknown) =>
+                    setActionError(e instanceof Error ? e.message : "Could not update the item."),
+                  );
+                }}
+              />
+            ) : (
+              <BoardPreview
+                projectKey={activeProject.key}
+                items={items}
+                onOpen={(item) => setItemDialog({ item })}
+              />
+            )}
           </>
         )}
       </main>
+
+      {itemDialog && activeProject && (
+        <ItemDialog
+          projectKey={activeProject.key}
+          item={itemDialog.item}
+          onCancel={() => setItemDialog(null)}
+          onSubmit={async (values) => {
+            if (itemDialog.item) await updateItem(itemDialog.item.id, values);
+            else await createItem(values);
+            setItemDialog(null);
+          }}
+          onDelete={
+            itemDialog.item
+              ? async () => {
+                  await deleteItem(itemDialog.item!.id);
+                  setItemDialog(null);
+                }
+              : undefined
+          }
+        />
+      )}
 
       {creating && (
         <NewProjectDialog

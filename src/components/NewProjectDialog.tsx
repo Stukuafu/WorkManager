@@ -1,4 +1,5 @@
-import { type FormEvent, useEffect, useId, useRef, useState } from "react";
+import { type FormEvent, useId, useState } from "react";
+import { inputClass, Modal } from "./Modal";
 import { isValidProjectKey, normalizeProjectKey, suggestProjectKey } from "../domain/keys";
 
 interface NewProjectDialogProps {
@@ -14,20 +15,6 @@ export function NewProjectDialog({ onSubmit, onCancel }: NewProjectDialogProps) 
   const [keyEdited, setKeyEdited] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const nameRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    nameRef.current?.focus();
-  }, []);
-
-  useEffect(() => {
-    function onKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") onCancel();
-    }
-    document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
-  }, [onCancel]);
-
   function handleNameChange(value: string) {
     setName(value);
     if (!keyEdited) setKey(suggestProjectKey(value));
@@ -48,31 +35,14 @@ export function NewProjectDialog({ onSubmit, onCancel }: NewProjectDialogProps) 
     }
   }
 
-  const inputClass =
-    "w-full rounded-md border border-line px-3 py-2 text-ink placeholder:text-brand-gray/60 focus:border-brand-red";
-
   return (
-    <div
-      className="fixed inset-0 z-10 flex items-center justify-center bg-ink/40 p-4"
-      onMouseDown={(e) => e.target === e.currentTarget && onCancel()}
-    >
-      <form
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={`${nameId}-title`}
-        onSubmit={handleSubmit}
-        className="w-full max-w-md rounded-card bg-white p-6 shadow-xl"
-      >
-        <h2 id={`${nameId}-title`} className="mb-4 text-xl">
-          New project
-        </h2>
-
+    <Modal title="New project" titleId={`${nameId}-title`} onClose={onCancel}>
+      <form onSubmit={handleSubmit}>
         <label htmlFor={nameId} className="mb-1 block text-sm font-bold">
           Name
         </label>
         <input
           id={nameId}
-          ref={nameRef}
           value={name}
           onChange={(e) => handleNameChange(e.target.value)}
           placeholder="Work Manager"
@@ -121,6 +91,6 @@ export function NewProjectDialog({ onSubmit, onCancel }: NewProjectDialogProps) 
           </button>
         </div>
       </form>
-    </div>
+    </Modal>
   );
 }

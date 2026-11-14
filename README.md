@@ -15,7 +15,7 @@ npm run build   # type-check and build
 
 - [x] Milestone 1: foundation (Vite + React + TS, brand theme, data model, storage layer, tests)
 - [x] Milestone 2: projects (create with a key, switch between projects, last project remembered)
-- [ ] Milestone 3: items and list view
+- [x] Milestone 3: items and list view (create, edit, delete, search and filters, read-only board preview)
 - [ ] Milestone 4: board
 - [ ] Milestone 5: detail panel
 - [ ] Milestone 6: polish and deploy
