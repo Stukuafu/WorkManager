@@ -115,6 +115,64 @@ describe("items", () => {
   });
 });
 
+describe("moving items", () => {
+  async function setup() {
+    const p = await repo.createProject({ key: "WM", name: "Work Manager" });
+    const a = await repo.createItem(p.id, { title: "A" });
+    const b = await repo.createItem(p.id, { title: "B" });
+    const c = await repo.createItem(p.id, { title: "C" });
+    return { p, a, b, c };
+  }
+
+  it("moves between columns, renumbers both, and logs the change", async () => {
+    const { p, a, b, c } = await setup();
+    await repo.moveItem(a.id, "done", 0);
+
+    const items = await repo.listItems(p.id);
+    const byId = Object.fromEntries(items.map((i) => [i.title, i]));
+    expect(byId.A).toMatchObject({ status: "done", order: 0 });
+    expect(byId.A.completedAt).toBeDefined();
+    expect([byId.B.order, byId.C.order]).toEqual([0, 1]);
+    expect(b.id).toBe(byId.B.id);
+    expect(c.id).toBe(byId.C.id);
+
+    const history = await repo.listStatusChanges(a.id);
+    expect(history.at(-1)).toMatchObject({ from: "todo", to: "done" });
+  });
+
+  it("reorders within a column without logging a status change", async () => {
+    const { p, a, c } = await setup();
+    await repo.moveItem(c.id, "todo", 0);
+    const items = (await repo.listItems(p.id)).sort((x, y) => x.order - y.order);
+    expect(items.map((i) => i.title)).toEqual(["C", "A", "B"]);
+    expect(await repo.listStatusChanges(c.id)).toHaveLength(1);
+    expect(a.id).toBeDefined();
+  });
+
+  it("clears completedAt when moved out of done", async () => {
+    const { a } = await setup();
+    await repo.moveItem(a.id, "done", 0);
+    await repo.moveItem(a.id, "in_review", 0);
+    const [item] = (await repo.exportData()).items.filter((i) => i.id === a.id);
+    expect(item.completedAt).toBeUndefined();
+  });
+
+  it("is a no-op when dropped in place, and rejects bad input", async () => {
+    const { a } = await setup();
+    expect(await repo.moveItem(a.id, "todo", 0)).toEqual([]);
+    await expect(repo.moveItem("missing", "todo", 0)).rejects.toThrow(RepositoryError);
+    await expect(repo.moveItem(a.id, "bogus" as never, 0)).rejects.toThrow(RepositoryError);
+  });
+
+  it("puts an item changed via updateItem at the bottom of the new column", async () => {
+    const { p, a, b } = await setup();
+    await repo.updateItem(a.id, { status: "in_progress" });
+    const moved = await repo.updateItem(b.id, { status: "in_progress" });
+    expect(moved.order).toBe(1);
+    expect((await repo.listItems(p.id)).find((i) => i.id === a.id)?.order).toBe(0);
+  });
+});
+
 describe("export / import", () => {
   it("round-trips data", async () => {
     const p = await repo.createProject({ key: "WM", name: "Work Manager" });

@@ -2,10 +2,10 @@ import { useEffect, useState } from "react";
 import { Balloon } from "./components/Balloon";
 import { NewProjectDialog } from "./components/NewProjectDialog";
 import { ProjectSwitcher } from "./components/ProjectSwitcher";
-import { BoardPreview } from "./components/BoardPreview";
+import { Board } from "./components/Board";
 import { ItemDialog } from "./components/ItemDialog";
 import { ListView } from "./components/ListView";
-import type { WorkItem } from "./domain/types";
+import type { Status, WorkItem } from "./domain/types";
 import { selectActiveProject, useAppStore } from "./store/appStore";
 
 export default function App() {
@@ -20,6 +20,7 @@ export default function App() {
   const createItem = useAppStore((s) => s.createItem);
   const updateItem = useAppStore((s) => s.updateItem);
   const deleteItem = useAppStore((s) => s.deleteItem);
+  const moveItem = useAppStore((s) => s.moveItem);
   const [creating, setCreating] = useState(false);
   const [itemDialog, setItemDialog] = useState<{ item?: WorkItem } | null>(null);
   const [view, setView] = useState<"list" | "board">("list");
@@ -132,10 +133,16 @@ export default function App() {
                 }}
               />
             ) : (
-              <BoardPreview
+              <Board
                 projectKey={activeProject.key}
                 items={items}
                 onOpen={(item) => setItemDialog({ item })}
+                onMove={(id: string, status: Status, index: number) => {
+                  setActionError(null);
+                  moveItem(id, status, index).catch((e: unknown) =>
+                    setActionError(e instanceof Error ? e.message : "Could not move the item."),
+                  );
+                }}
               />
             )}
           </>

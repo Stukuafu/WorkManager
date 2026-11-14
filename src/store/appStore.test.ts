@@ -117,3 +117,38 @@ describe("app store items", () => {
     expect(second.getState().items.map((i) => i.title)).toEqual(["kept"]);
   });
 });
+
+describe("app store moving items", () => {
+  async function setup() {
+    const store = createAppStore(repo);
+    await store.getState().init();
+    await store.getState().createProject({ key: "WM", name: "Work Manager" });
+    const a = await store.getState().createItem({ title: "A" });
+    const b = await store.getState().createItem({ title: "B" });
+    return { store, a, b };
+  }
+
+  it("updates the UI immediately and persists", async () => {
+    const { store, a } = await setup();
+    const pending = store.getState().moveItem(a.id, "done", 0);
+    // Optimistic state is visible before the promise settles.
+    expect(store.getState().items.find((i) => i.id === a.id)?.status).toBe("done");
+    await pending;
+    expect(store.getState().items.find((i) => i.id === a.id)?.completedAt).toBeDefined();
+
+    const reloaded = createAppStore(repo);
+    await reloaded.getState().init();
+    expect(reloaded.getState().items.find((i) => i.id === a.id)?.status).toBe("done");
+  });
+
+  it("rolls back when persisting fails", async () => {
+    const { store, a } = await setup();
+    const original = repo.moveItem.bind(repo);
+    repo.moveItem = async () => {
+      throw new Error("disk full");
+    };
+    await expect(store.getState().moveItem(a.id, "done", 0)).rejects.toThrow("disk full");
+    expect(store.getState().items.find((i) => i.id === a.id)?.status).toBe("todo");
+    repo.moveItem = original;
+  });
+});

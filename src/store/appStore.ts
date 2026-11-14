@@ -1,6 +1,14 @@
 import { useStore } from "zustand";
 import { createStore } from "zustand/vanilla";
-import type { NewProject, NewWorkItem, Project, WorkItem, WorkItemPatch } from "../domain/types";
+import { planMove } from "../domain/board";
+import type {
+  NewProject,
+  NewWorkItem,
+  Project,
+  Status,
+  WorkItem,
+  WorkItemPatch,
+} from "../domain/types";
 import { LocalStorageRepository } from "../storage/localStorageRepository";
 import type { Repository } from "../storage/repository";
 
@@ -20,6 +28,8 @@ export interface AppState {
   createItem(input: NewWorkItem): Promise<WorkItem>;
   updateItem(id: string, patch: WorkItemPatch): Promise<WorkItem>;
   deleteItem(id: string): Promise<void>;
+  /** Move an item to a column and position. Updates the UI immediately, then persists. */
+  moveItem(id: string, status: Status, index: number): Promise<void>;
 }
 
 function readActiveId(): string | null {
@@ -104,6 +114,33 @@ export function createAppStore(repo: Repository) {
       async deleteItem(id) {
         await repo.deleteItem(id);
         set({ items: get().items.filter((i) => i.id !== id) });
+      },
+
+      async moveItem(id, status, index) {
+        const projectId = requireActiveProject();
+        const before = get().items;
+        const changes = planMove(before, id, status, index);
+        if (changes.length === 0) return;
+
+        // Optimistic update so the board reacts instantly.
+        const byId = new Map(changes.map((c) => [c.id, c]));
+        set({
+          items: before.map((i) => {
+            const c = byId.get(i.id);
+            return c ? { ...i, status: c.status, order: c.order } : i;
+          }),
+        });
+
+        try {
+          const changed = await repo.moveItem(id, status, index);
+          const fresh = new Map(changed.map((i) => [i.id, i]));
+          if (get().activeProjectId === projectId) {
+            set({ items: get().items.map((i) => fresh.get(i.id) ?? i) });
+          }
+        } catch (error) {
+          await loadItems(projectId); // roll back to what is actually stored
+          throw error;
+        }
       },
     };
   });

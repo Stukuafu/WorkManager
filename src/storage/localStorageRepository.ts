@@ -1,8 +1,10 @@
+import { planMove } from "../domain/board";
 import { isValidProjectKey, normalizeProjectKey } from "../domain/keys";
 import type {
   NewProject,
   NewWorkItem,
   Project,
+  Status,
   StatusChange,
   WorkItem,
   WorkItemPatch,
@@ -189,6 +191,13 @@ export class LocalStorageRepository implements Repository {
         at: timestamp,
       });
       item.completedAt = item.status === "done" ? timestamp : undefined;
+      if (patch.order === undefined) {
+        // Land at the bottom of the new column.
+        const others = data.items.filter(
+          (i) => i.projectId === item.projectId && i.status === item.status && i.id !== item.id,
+        );
+        item.order = others.length === 0 ? 0 : Math.max(...others.map((i) => i.order)) + 1;
+      }
     }
 
     this.save(data);
@@ -200,6 +209,43 @@ export class LocalStorageRepository implements Repository {
     data.items = data.items.filter((i) => i.id !== id);
     data.statusChanges = data.statusChanges.filter((c) => c.itemId !== id);
     this.save(data);
+  }
+
+  async moveItem(id: string, toStatus: Status, toIndex: number): Promise<WorkItem[]> {
+    const data = this.load();
+    const item = data.items.find((i) => i.id === id);
+    if (!item) throw new RepositoryError("Item not found");
+    if (!STATUSES.includes(toStatus)) throw new RepositoryError(`Invalid status: ${toStatus}`);
+
+    const projectItems = data.items.filter((i) => i.projectId === item.projectId);
+    const changes = planMove(projectItems, id, toStatus, toIndex);
+    if (changes.length === 0) return [];
+
+    const timestamp = now();
+    const changed: WorkItem[] = [];
+    for (const change of changes) {
+      const target = data.items.find((i) => i.id === change.id);
+      if (!target) continue;
+      const previousStatus = target.status;
+      target.order = change.order;
+      target.status = change.status;
+      if (target.id === id) {
+        target.updatedAt = timestamp;
+        if (previousStatus !== change.status) {
+          data.statusChanges.push({
+            id: newId(),
+            itemId: id,
+            from: previousStatus,
+            to: change.status,
+            at: timestamp,
+          });
+          target.completedAt = change.status === "done" ? timestamp : undefined;
+        }
+      }
+      changed.push(target);
+    }
+    this.save(data);
+    return changed;
   }
 
   async listStatusChanges(itemId: string): Promise<StatusChange[]> {

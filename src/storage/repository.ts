@@ -2,6 +2,7 @@ import type {
   NewProject,
   NewWorkItem,
   Project,
+  Status,
   StatusChange,
   WorkItem,
   WorkItemPatch,
@@ -29,6 +30,11 @@ export interface Repository {
   createItem(projectId: string, input: NewWorkItem): Promise<WorkItem>;
   updateItem(id: string, patch: WorkItemPatch): Promise<WorkItem>;
   deleteItem(id: string): Promise<void>;
+  /**
+   * Move an item to a column and position (0 = top). Renumbers the affected
+   * columns and logs the status change. Returns every item that changed.
+   */
+  moveItem(id: string, toStatus: Status, toIndex: number): Promise<WorkItem[]>;
   listStatusChanges(itemId: string): Promise<StatusChange[]>;
 
   exportData(): Promise<StoredData>;
