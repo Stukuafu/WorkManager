@@ -173,6 +173,83 @@ describe("moving items", () => {
   });
 });
 
+describe("notes", () => {
+  async function setup() {
+    const p = await repo.createProject({ key: "WM", name: "Work Manager" });
+    const a = await repo.createItem(p.id, { title: "A" });
+    const b = await repo.createItem(p.id, { title: "B" });
+    return { p, a, b };
+  }
+
+  it("adds notes (trimmed) and lists them oldest first", async () => {
+    const { a } = await setup();
+    const first = await repo.addNote(a.id, "  first  ");
+    await new Promise((r) => setTimeout(r, 5));
+    await repo.addNote(a.id, "second");
+    expect(first.body).toBe("first");
+    expect((await repo.listNotes(a.id)).map((n) => n.body)).toEqual(["first", "second"]);
+  });
+
+  it("keeps notes separate per item", async () => {
+    const { a, b } = await setup();
+    await repo.addNote(a.id, "for a");
+    expect(await repo.listNotes(b.id)).toEqual([]);
+  });
+
+  it("rejects empty, overlong and orphaned notes", async () => {
+    const { a } = await setup();
+    await expect(repo.addNote(a.id, "   ")).rejects.toThrow(RepositoryError);
+    await expect(repo.addNote(a.id, "x".repeat(10_001))).rejects.toThrow(/at most/);
+    await expect(repo.addNote("missing", "hi")).rejects.toThrow(RepositoryError);
+  });
+
+  it("edits a note and updates its timestamp", async () => {
+    const { a } = await setup();
+    const note = await repo.addNote(a.id, "old");
+    await new Promise((r) => setTimeout(r, 5));
+    const edited = await repo.updateNote(note.id, "new");
+    expect(edited.body).toBe("new");
+    expect(edited.updatedAt > note.updatedAt).toBe(true);
+    expect(edited.createdAt).toBe(note.createdAt);
+    await expect(repo.updateNote(note.id, " ")).rejects.toThrow(RepositoryError);
+    await expect(repo.updateNote("missing", "x")).rejects.toThrow(RepositoryError);
+  });
+
+  it("deletes a note", async () => {
+    const { a } = await setup();
+    const note = await repo.addNote(a.id, "bye");
+    await repo.deleteNote(note.id);
+    expect(await repo.listNotes(a.id)).toEqual([]);
+  });
+
+  it("removes an item's notes when the item is deleted", async () => {
+    const { a } = await setup();
+    await repo.addNote(a.id, "gone soon");
+    await repo.deleteItem(a.id);
+    expect((await repo.exportData()).notes).toEqual([]);
+  });
+
+  it("counts notes per item within a project", async () => {
+    const { p, a, b } = await setup();
+    await repo.addNote(a.id, "1");
+    await repo.addNote(a.id, "2");
+    const other = await repo.createProject({ key: "OT", name: "Other" });
+    const x = await repo.createItem(other.id, { title: "X" });
+    await repo.addNote(x.id, "elsewhere");
+    expect(await repo.noteCounts(p.id)).toEqual({ [a.id]: 2 });
+    expect(b.id in (await repo.noteCounts(p.id))).toBe(false);
+  });
+
+  it("keeps notes through export and import", async () => {
+    const { a } = await setup();
+    await repo.addNote(a.id, "kept");
+    const exported = await repo.exportData();
+    const other = new LocalStorageRepository(new MemoryStorage());
+    await other.importData(JSON.parse(JSON.stringify(exported)));
+    expect((await other.listNotes(a.id)).map((n) => n.body)).toEqual(["kept"]);
+  });
+});
+
 describe("export / import", () => {
   it("round-trips data", async () => {
     const p = await repo.createProject({ key: "WM", name: "Work Manager" });
@@ -190,6 +267,23 @@ describe("export / import", () => {
       RepositoryError,
     );
     await expect(repo.importData({ version: 1, projects: [] })).rejects.toThrow(RepositoryError);
+  });
+
+  it("loads data saved by the previous version (no notes) and upgrades it on save", async () => {
+    storage.setItem(
+      "work-manager:data",
+      JSON.stringify({
+        version: 1,
+        projects: [{ id: "p1", key: "WM", name: "Old", nextNumber: 2, createdAt: "t", updatedAt: "t" }],
+        items: [],
+        statusChanges: [],
+      }),
+    );
+    expect((await repo.listProjects()).map((p) => p.name)).toEqual(["Old"]);
+    await repo.createProject({ key: "NW", name: "New" });
+    const saved = await repo.exportData();
+    expect(saved.version).toBe(2);
+    expect(saved.notes).toEqual([]);
   });
 
   it("reports corrupted stored data", async () => {

@@ -4,6 +4,7 @@ import { planMove } from "../domain/board";
 import type {
   NewProject,
   NewWorkItem,
+  Note,
   Project,
   Status,
   StatusChange,
@@ -22,6 +23,8 @@ export interface AppState {
   activeProjectId: string | null;
   /** Items of the active project. */
   items: WorkItem[];
+  /** Number of notes per item id in the active project (items with none are absent). */
+  noteCounts: Record<string, number>;
   /** Load persisted data. Call once on startup. */
   init(): Promise<void>;
   /** Create a project and make it active. Rejects with the repository's validation error. */
@@ -34,6 +37,11 @@ export interface AppState {
   exportData(): Promise<StoredData>;
   /** Replace all data with a validated backup. Throws with a readable message if invalid. */
   importData(raw: unknown): Promise<void>;
+  /** Notes on an item, oldest first. */
+  loadNotes(itemId: string): Promise<Note[]>;
+  addNote(itemId: string, body: string): Promise<Note>;
+  updateNote(id: string, body: string): Promise<Note>;
+  deleteNote(itemId: string, id: string): Promise<void>;
   /** Status history for an item, oldest first. */
   loadHistory(id: string): Promise<StatusChange[]>;
   /** Move an item to a column and position. Updates the UI immediately, then persists. */
@@ -60,8 +68,19 @@ export function createAppStore(repo: Repository) {
   return createStore<AppState>((set, get) => {
     /** Load items for a project, ignoring the result if the user has since switched away. */
     async function loadItems(projectId: string): Promise<void> {
-      const items = await repo.listItems(projectId);
-      if (get().activeProjectId === projectId) set({ items });
+      const [items, noteCounts] = await Promise.all([
+        repo.listItems(projectId),
+        repo.noteCounts(projectId),
+      ]);
+      if (get().activeProjectId === projectId) set({ items, noteCounts });
+    }
+
+    function bumpCount(itemId: string, delta: number): void {
+      const counts = { ...get().noteCounts };
+      const next = (counts[itemId] ?? 0) + delta;
+      if (next > 0) counts[itemId] = next;
+      else delete counts[itemId];
+      set({ noteCounts: counts });
     }
 
     function requireActiveProject(): string {
@@ -75,6 +94,7 @@ export function createAppStore(repo: Repository) {
       projects: [],
       activeProjectId: null,
       items: [],
+      noteCounts: {},
 
       async init() {
         const projects = await repo.listProjects();
@@ -82,19 +102,20 @@ export function createAppStore(repo: Repository) {
         const activeProjectId =
           projects.find((p) => p.id === saved)?.id ?? projects[0]?.id ?? null;
         const items = activeProjectId ? await repo.listItems(activeProjectId) : [];
-        set({ projects, activeProjectId, items, loaded: true });
+        const noteCounts = activeProjectId ? await repo.noteCounts(activeProjectId) : {};
+        set({ projects, activeProjectId, items, noteCounts, loaded: true });
       },
 
       async createProject(input) {
         const project = await repo.createProject(input);
-        set({ projects: [...get().projects, project], activeProjectId: project.id, items: [] });
+        set({ projects: [...get().projects, project], activeProjectId: project.id, items: [], noteCounts: {} });
         writeActiveId(project.id);
         return project;
       },
 
       async selectProject(id) {
         if (!get().projects.some((p) => p.id === id)) return;
-        set({ activeProjectId: id, items: [] });
+        set({ activeProjectId: id, items: [], noteCounts: {} });
         writeActiveId(id);
         await loadItems(id);
       },
@@ -121,7 +142,9 @@ export function createAppStore(repo: Repository) {
 
       async deleteItem(id) {
         await repo.deleteItem(id);
-        set({ items: get().items.filter((i) => i.id !== id) });
+        const noteCounts = { ...get().noteCounts };
+        delete noteCounts[id];
+        set({ items: get().items.filter((i) => i.id !== id), noteCounts });
       },
 
       async exportData() {
@@ -133,6 +156,25 @@ export function createAppStore(repo: Repository) {
         const data = parseStoredData(raw);
         await repo.importData(data);
         await get().init();
+      },
+
+      async loadNotes(itemId) {
+        return repo.listNotes(itemId);
+      },
+
+      async addNote(itemId, body) {
+        const note = await repo.addNote(itemId, body);
+        bumpCount(itemId, 1);
+        return note;
+      },
+
+      async updateNote(id, body) {
+        return repo.updateNote(id, body);
+      },
+
+      async deleteNote(itemId, id) {
+        await repo.deleteNote(id);
+        bumpCount(itemId, -1);
       },
 
       async loadHistory(id) {

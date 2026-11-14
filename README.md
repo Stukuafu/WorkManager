@@ -17,7 +17,8 @@ npm run build   # type-check and build
 - Fixed workflow: To Do, In Progress, In Review, Done
 - List view with search and filters, and a drag-and-drop board (mouse, touch and keyboard)
 - Detail panel with status history, dates and time to complete
-- Backup: export and import all data as JSON (data lives in this browser only)
+- Notes on each item (add, edit, delete), with note counts on the list and board
+- Backup: export and import all data as JSON, including notes (data lives in this browser only). Backups from earlier versions still import
 - Shortcuts: `C` new item, `/` search
 - Styled with the Ricoh brand palette, shape language and Arial fallback typography (no logo)
 

@@ -121,4 +121,36 @@ describe("App projects flow", () => {
     expect(screen.getByText("Overdue").nextSibling).toHaveTextContent("1");
     expect(screen.getByText("Open").nextSibling).toHaveTextContent("1");
   });
+
+  it("keeps notes on an item and shows the count on the list and board", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(await screen.findByRole("button", { name: "New project" }));
+    await user.type(screen.getByLabelText("Name"), "Work Manager");
+    await user.click(screen.getByRole("button", { name: "Create project" }));
+    await user.click(await screen.findByRole("button", { name: "New item" }));
+    await user.type(screen.getByLabelText("Title"), "Needs notes");
+    await user.click(screen.getByRole("button", { name: "Create item" }));
+
+    await user.click(await screen.findByRole("button", { name: "Needs notes" }));
+    await user.type(await screen.findByLabelText("Add a note"), "First thought");
+    await user.click(screen.getByRole("button", { name: "Add note" }));
+    await user.type(screen.getByLabelText("Add a note"), "Second thought");
+    await user.click(screen.getByRole("button", { name: "Add note" }));
+    expect(await screen.findByRole("heading", { name: "Notes (2)" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Close panel" }));
+
+    expect(await screen.findByText("2 notes")).toBeInTheDocument();
+    await user.click(screen.getByRole("tab", { name: "board" }));
+    expect(screen.getByText("2 notes")).toBeInTheDocument();
+
+    // Notes persist and go away with the item.
+    await user.click(screen.getByRole("button", { name: "Needs notes" }));
+    expect(await screen.findByText("Second thought")).toBeInTheDocument();
+    // The form's item-level Delete comes before each note's own Delete button.
+    await user.click(screen.getAllByRole("button", { name: "Delete" })[0]);
+    await user.click(screen.getByRole("button", { name: "Yes, delete" }));
+    expect(screen.queryByText("2 notes")).not.toBeInTheDocument();
+    expect(screen.queryByText("Needs notes")).not.toBeInTheDocument();
+  });
 });

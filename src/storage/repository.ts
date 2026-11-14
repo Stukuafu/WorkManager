@@ -1,6 +1,7 @@
 import type {
   NewProject,
   NewWorkItem,
+  Note,
   Project,
   Status,
   StatusChange,
@@ -8,13 +9,14 @@ import type {
   WorkItemPatch,
 } from "../domain/types";
 
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 2;
 
 export interface StoredData {
   version: number;
   projects: Project[];
   items: WorkItem[];
   statusChanges: StatusChange[];
+  notes: Note[];
 }
 
 /**
@@ -36,6 +38,14 @@ export interface Repository {
    */
   moveItem(id: string, toStatus: Status, toIndex: number): Promise<WorkItem[]>;
   listStatusChanges(itemId: string): Promise<StatusChange[]>;
+
+  /** Notes on an item, oldest first. */
+  listNotes(itemId: string): Promise<Note[]>;
+  addNote(itemId: string, body: string): Promise<Note>;
+  updateNote(id: string, body: string): Promise<Note>;
+  deleteNote(id: string): Promise<void>;
+  /** Number of notes per item id, for every item in a project (items with none are omitted). */
+  noteCounts(projectId: string): Promise<Record<string, number>>;
 
   exportData(): Promise<StoredData>;
   importData(data: unknown): Promise<void>;

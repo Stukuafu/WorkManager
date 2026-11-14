@@ -131,9 +131,13 @@ Each milestone ends with something you can click through.
 5. **Detail panel:** side panel with full editing, status history from `StatusChange`, and `completedAt` tracking.
 6. **Polish and deploy:** JSON export/import, empty states, keyboard shortcuts, accessibility pass, and GitHub Pages deployment.
 
+## 7a. Added after the milestones
+
+- **Notes:** free-text notes on each item (add, edit, delete). Stored as `Note { id, itemId, body, createdAt, updatedAt }`. Storage schema is now **version 2**; version 1 data and backups are upgraded automatically (they simply have no notes). Deleting an item deletes its notes.
+
 ## 8. Out of scope for the PoC (possible later)
 
-Comments, sprints and backlog, time tracking and estimates, dashboards and burndown, custom workflows, multi-user accounts and assignees, notifications, attachments, a backend (Supabase or a Node API), and dark mode.
+Sprints and backlog, time tracking and estimates, dashboards and burndown, custom workflows, multi-user accounts and assignees, notifications, attachments, a backend (Supabase or a Node API), and dark mode.
 
 ## 9. Risks and open questions
 

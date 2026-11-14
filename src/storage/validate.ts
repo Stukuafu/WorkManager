@@ -1,5 +1,5 @@
 import { isValidProjectKey } from "../domain/keys";
-import type { Project, StatusChange, WorkItem } from "../domain/types";
+import { MAX_NOTE_LENGTH, type Note, type Project, type StatusChange, type WorkItem } from "../domain/types";
 import { ITEM_TYPES, PRIORITIES, STATUSES } from "../domain/workflow";
 import { RepositoryError, SCHEMA_VERSION, type StoredData } from "./repository";
 
@@ -59,7 +59,7 @@ export function parseStoredData(raw: unknown): StoredData {
   if (typeof raw.version !== "number" || raw.version > SCHEMA_VERSION || raw.version < 1) {
     fail(`Unsupported data version: ${String(raw.version)}`);
   }
-  // Future migrations from older versions go here.
+  // Version 1 had no notes; everything else is unchanged, so migrating is just defaulting them.
 
   const projects: Project[] = list(raw, "projects").map((entry, i) => {
     const where = `Project ${i + 1}`;
@@ -137,5 +137,23 @@ export function parseStoredData(raw: unknown): StoredData {
     })
     .filter((c) => itemIds.has(c.itemId)); // drop history for items that no longer exist
 
-  return { version: SCHEMA_VERSION, projects, items, statusChanges };
+  const notes: Note[] = (raw.version >= 2 ? list(raw, "notes") : [])
+    .map((entry, i) => {
+      const where = `Note ${i + 1}`;
+      if (!isRec(entry)) fail(`${where} is not an object`);
+      const body = str(entry, "body", where);
+      if (!body.trim()) fail(`${where}: "body" must not be empty`);
+      if (body.length > MAX_NOTE_LENGTH) fail(`${where}: "body" is too long`);
+      return {
+        id: str(entry, "id", where),
+        itemId: str(entry, "itemId", where),
+        body,
+        createdAt: str(entry, "createdAt", where),
+        updatedAt: str(entry, "updatedAt", where),
+      };
+    })
+    .filter((n) => itemIds.has(n.itemId)); // drop notes for items that no longer exist
+  if (new Set(notes.map((n) => n.id)).size !== notes.length) fail("Duplicate note ids");
+
+  return { version: SCHEMA_VERSION, projects, items, statusChanges, notes };
 }

@@ -1,13 +1,15 @@
 import { planMove } from "../domain/board";
 import { isValidProjectKey, normalizeProjectKey } from "../domain/keys";
-import type {
-  NewProject,
-  NewWorkItem,
-  Project,
-  Status,
-  StatusChange,
-  WorkItem,
-  WorkItemPatch,
+import {
+  MAX_NOTE_LENGTH,
+  type NewProject,
+  type NewWorkItem,
+  type Note,
+  type Project,
+  type Status,
+  type StatusChange,
+  type WorkItem,
+  type WorkItemPatch,
 } from "../domain/types";
 import { ITEM_TYPES, PRIORITIES, STATUSES } from "../domain/workflow";
 import {
@@ -23,11 +25,20 @@ const STORAGE_KEY = "work-manager:data";
 type StorageLike = Pick<Storage, "getItem" | "setItem">;
 
 function emptyData(): StoredData {
-  return { version: SCHEMA_VERSION, projects: [], items: [], statusChanges: [] };
+  return { version: SCHEMA_VERSION, projects: [], items: [], statusChanges: [], notes: [] };
 }
 
 function now(): string {
   return new Date().toISOString();
+}
+
+function validNoteBody(body: string): string {
+  const text = body.trim();
+  if (!text) throw new RepositoryError("Write something in the note first");
+  if (text.length > MAX_NOTE_LENGTH) {
+    throw new RepositoryError(`Notes can be at most ${MAX_NOTE_LENGTH} characters`);
+  }
+  return text;
 }
 
 function newId(): string {
@@ -188,6 +199,7 @@ export class LocalStorageRepository implements Repository {
     const data = this.load();
     data.items = data.items.filter((i) => i.id !== id);
     data.statusChanges = data.statusChanges.filter((c) => c.itemId !== id);
+    data.notes = data.notes.filter((n) => n.itemId !== id);
     this.save(data);
   }
 
@@ -230,6 +242,49 @@ export class LocalStorageRepository implements Repository {
 
   async listStatusChanges(itemId: string): Promise<StatusChange[]> {
     return this.load().statusChanges.filter((c) => c.itemId === itemId);
+  }
+
+  async listNotes(itemId: string): Promise<Note[]> {
+    return this.load()
+      .notes.filter((n) => n.itemId === itemId)
+      .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+  }
+
+  async addNote(itemId: string, body: string): Promise<Note> {
+    const data = this.load();
+    if (!data.items.some((i) => i.id === itemId)) throw new RepositoryError("Item not found");
+    const text = validNoteBody(body);
+    const timestamp = now();
+    const note: Note = { id: newId(), itemId, body: text, createdAt: timestamp, updatedAt: timestamp };
+    data.notes.push(note);
+    this.save(data);
+    return note;
+  }
+
+  async updateNote(id: string, body: string): Promise<Note> {
+    const data = this.load();
+    const note = data.notes.find((n) => n.id === id);
+    if (!note) throw new RepositoryError("Note not found");
+    note.body = validNoteBody(body);
+    note.updatedAt = now();
+    this.save(data);
+    return note;
+  }
+
+  async deleteNote(id: string): Promise<void> {
+    const data = this.load();
+    data.notes = data.notes.filter((n) => n.id !== id);
+    this.save(data);
+  }
+
+  async noteCounts(projectId: string): Promise<Record<string, number>> {
+    const data = this.load();
+    const itemIds = new Set(data.items.filter((i) => i.projectId === projectId).map((i) => i.id));
+    const counts: Record<string, number> = {};
+    for (const note of data.notes) {
+      if (itemIds.has(note.itemId)) counts[note.itemId] = (counts[note.itemId] ?? 0) + 1;
+    }
+    return counts;
   }
 
   async exportData(): Promise<StoredData> {

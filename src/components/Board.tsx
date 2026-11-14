@@ -27,6 +27,7 @@ import { formatItemKey } from "../domain/keys";
 import type { Status, WorkItem } from "../domain/types";
 import { STATUSES, STATUS_LABELS } from "../domain/workflow";
 import { LabelChip, PriorityBadge } from "./Badges";
+import { NoteCount } from "./NoteCount";
 
 const STATUS_TINT: Record<Status, string> = {
   todo: "bg-tint-blue",
@@ -38,6 +39,7 @@ const STATUS_TINT: Record<Status, string> = {
 interface BoardProps {
   projectKey: string;
   items: WorkItem[];
+  noteCounts: Record<string, number>;
   onOpen(item: WorkItem): void;
   onMove(id: string, status: Status, index: number): void;
 }
@@ -46,7 +48,7 @@ function isStatus(id: unknown): id is Status {
   return typeof id === "string" && (STATUSES as readonly string[]).includes(id);
 }
 
-export function Board({ projectKey, items, onOpen, onMove }: BoardProps) {
+export function Board({ projectKey, items, noteCounts, onOpen, onMove }: BoardProps) {
   const [draft, setDraft] = useState<Columns | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
 
@@ -154,14 +156,16 @@ export function Board({ projectKey, items, onOpen, onMove }: BoardProps) {
             {columns[status].map((id) => {
               const item = itemsById.get(id);
               return item ? (
-                <Card key={id} item={item} projectKey={projectKey} onOpen={onOpen} />
+                <Card key={id} item={item} noteCount={noteCounts[id]} projectKey={projectKey} onOpen={onOpen} />
               ) : null;
             })}
           </Column>
         ))}
       </div>
       <DragOverlay>
-        {activeItem && <CardBody item={activeItem} projectKey={projectKey} dragging />}
+        {activeItem && (
+          <CardBody item={activeItem} noteCount={noteCounts[activeItem.id]} projectKey={projectKey} dragging />
+        )}
       </DragOverlay>
     </DndContext>
   );
@@ -202,10 +206,12 @@ function Column({
 
 function Card({
   item,
+  noteCount,
   projectKey,
   onOpen,
 }: {
   item: WorkItem;
+  noteCount?: number;
   projectKey: string;
   onOpen(item: WorkItem): void;
 }) {
@@ -224,6 +230,7 @@ function Card({
     >
       <CardBody
         item={item}
+        noteCount={noteCount}
         projectKey={projectKey}
         onOpen={onOpen}
         handle={
@@ -245,12 +252,14 @@ function Card({
 
 function CardBody({
   item,
+  noteCount,
   projectKey,
   onOpen,
   handle,
   dragging,
 }: {
   item: WorkItem;
+  noteCount?: number;
   projectKey: string;
   onOpen?(item: WorkItem): void;
   handle?: ReactNode;
@@ -282,6 +291,9 @@ function CardBody({
         {item.labels.map((l) => (
           <LabelChip key={l} label={l} />
         ))}
+        <span className="ml-auto">
+          <NoteCount count={noteCount} />
+        </span>
       </div>
     </div>
   );

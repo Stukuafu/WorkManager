@@ -1,22 +1,38 @@
 import { useEffect, useId, useState } from "react";
 import { formatItemKey } from "../domain/keys";
 import { cycleTime, formatDateTime } from "../domain/time";
-import type { NewWorkItem, StatusChange, WorkItem } from "../domain/types";
+import type { NewWorkItem, Note, StatusChange, WorkItem } from "../domain/types";
 import { STATUS_LABELS } from "../domain/workflow";
 import { Drawer } from "./Drawer";
 import { ItemForm } from "./ItemForm";
+import { NotesSection } from "./NotesSection";
 
 interface ItemPanelProps {
   projectKey: string;
   item: WorkItem;
   loadHistory(id: string): Promise<StatusChange[]>;
+  loadNotes(itemId: string): Promise<Note[]>;
+  onAddNote(itemId: string, body: string): Promise<Note>;
+  onUpdateNote(id: string, body: string): Promise<Note>;
+  onDeleteNote(itemId: string, id: string): Promise<void>;
   onSave(values: NewWorkItem): Promise<void>;
   onDelete(): Promise<void>;
   onClose(): void;
 }
 
 /** Side panel to edit an item and see how it moved through the workflow. */
-export function ItemPanel({ projectKey, item, loadHistory, onSave, onDelete, onClose }: ItemPanelProps) {
+export function ItemPanel({
+  projectKey,
+  item,
+  loadHistory,
+  loadNotes,
+  onAddNote,
+  onUpdateNote,
+  onDeleteNote,
+  onSave,
+  onDelete,
+  onClose,
+}: ItemPanelProps) {
   const id = useId();
   const key = formatItemKey(projectKey, item.number);
   const [history, setHistory] = useState<StatusChange[]>([]);
@@ -43,6 +59,15 @@ export function ItemPanel({ projectKey, item, loadHistory, onSave, onDelete, onC
         onDelete={onDelete}
         onCancel={onClose}
         cancelLabel="Close"
+      />
+
+      <NotesSection
+        key={`notes-${item.id}`}
+        itemId={item.id}
+        loadNotes={loadNotes}
+        onAdd={onAddNote}
+        onUpdate={onUpdateNote}
+        onDelete={onDeleteNote}
       />
 
       <section aria-labelledby={`${id}-details`} className="mt-8 border-t border-line pt-6">

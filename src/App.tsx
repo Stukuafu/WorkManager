@@ -27,6 +27,11 @@ export default function App() {
   const deleteItem = useAppStore((s) => s.deleteItem);
   const moveItem = useAppStore((s) => s.moveItem);
   const loadHistory = useAppStore((s) => s.loadHistory);
+  const loadNotes = useAppStore((s) => s.loadNotes);
+  const addNote = useAppStore((s) => s.addNote);
+  const updateNote = useAppStore((s) => s.updateNote);
+  const deleteNote = useAppStore((s) => s.deleteNote);
+  const noteCounts = useAppStore((s) => s.noteCounts);
   const exportData = useAppStore((s) => s.exportData);
   const importData = useAppStore((s) => s.importData);
   const [creating, setCreating] = useState(false);
@@ -143,6 +148,7 @@ export default function App() {
                 key={activeProject.id}
                 projectKey={activeProject.key}
                 items={items}
+                noteCounts={noteCounts}
                 onOpen={(item) => setOpenItemId(item.id)}
                 onCreate={() => setCreatingItem(true)}
                 onStatusChange={(item, status) => {
@@ -156,6 +162,7 @@ export default function App() {
               <Board
                 projectKey={activeProject.key}
                 items={items}
+                noteCounts={noteCounts}
                 onOpen={(item) => setOpenItemId(item.id)}
                 onMove={(id: string, status: Status, index: number) => {
                   setActionError(null);
@@ -186,6 +193,10 @@ export default function App() {
           projectKey={activeProject.key}
           item={openItem}
           loadHistory={loadHistory}
+          loadNotes={loadNotes}
+          onAddNote={addNote}
+          onUpdateNote={updateNote}
+          onDeleteNote={deleteNote}
           onClose={() => setOpenItemId(null)}
           onSave={async (values) => {
             await updateItem(openItem.id, values);

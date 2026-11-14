@@ -41,6 +41,17 @@ export interface StatusChange {
   at: string;
 }
 
+/** A free-text note on a work item. */
+export interface Note {
+  id: string;
+  itemId: string;
+  body: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export const MAX_NOTE_LENGTH = 10_000;
+
 export type NewProject = Pick<Project, "key" | "name">;
 
 export type NewWorkItem = Pick<WorkItem, "title"> &

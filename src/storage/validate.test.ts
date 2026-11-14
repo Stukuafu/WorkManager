@@ -17,11 +17,13 @@ const item = {
   createdAt: "t",
   updatedAt: "t",
 };
+const note = { id: "n1", itemId: "i1", body: "hello", createdAt: "t", updatedAt: "t" };
 const valid = () => ({
-  version: 1,
+  version: 2,
   projects: [{ ...project }],
   items: [{ ...item }],
   statusChanges: [{ id: "c1", itemId: "i1", from: null, to: "todo", at: "t" }],
+  notes: [{ ...note }],
 });
 
 describe("parseStoredData", () => {
@@ -41,6 +43,20 @@ describe("parseStoredData", () => {
     expect(parseStoredData(data).projects[0].nextNumber).toBe(2);
   });
 
+  it("migrates version 1 data (no notes) to the current version", () => {
+    const { notes: _notes, ...v1 } = valid();
+    const result = parseStoredData({ ...v1, version: 1 });
+    expect(result.version).toBe(2);
+    expect(result.notes).toEqual([]);
+    expect(result.items).toEqual(valid().items);
+  });
+
+  it("drops notes for items that do not exist", () => {
+    const data = valid();
+    data.notes.push({ ...note, id: "n2", itemId: "ghost" });
+    expect(parseStoredData(data).notes).toHaveLength(1);
+  });
+
   it("drops history for items that do not exist", () => {
     const data = valid();
     data.statusChanges.push({ id: "c2", itemId: "ghost", from: null, to: "todo", at: "t" });
@@ -57,6 +73,10 @@ describe("parseStoredData", () => {
     ["labels not a list", (d) => ((d.items[0] as Record<string, unknown>).labels = "x"), /labels/],
     ["bad status change", (d) => ((d.statusChanges[0] as Record<string, unknown>).to = "nope"), /"to"/],
     ["future version", (d) => (d.version = 99), /version/],
+    ["empty note", (d) => (d.notes[0].body = "   "), /must not be empty/],
+    ["overlong note", (d) => (d.notes[0].body = "x".repeat(10_001)), /too long/],
+    ["non-text note body", (d) => ((d.notes[0] as Record<string, unknown>).body = 5), /body/],
+    ["duplicate note ids", (d) => d.notes.push({ ...note }), /Duplicate note ids/],
   ];
   for (const [name, mutate, message] of bad) {
     it(`rejects ${name}`, () => {
@@ -71,5 +91,8 @@ describe("parseStoredData", () => {
     expect(() => parseStoredData(null)).toThrow(RepositoryError);
     expect(() => parseStoredData([])).toThrow(RepositoryError);
     expect(() => parseStoredData({ version: 1, projects: [], items: [] })).toThrow(/statusChanges/);
+    const noNotes = valid() as Record<string, unknown>;
+    delete noNotes.notes;
+    expect(() => parseStoredData(noNotes)).toThrow(/"notes"/);
   });
 });

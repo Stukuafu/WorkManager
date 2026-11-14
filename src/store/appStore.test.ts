@@ -178,3 +178,59 @@ describe("app store backup", () => {
     expect((await repo.exportData()).projects).toHaveLength(1);
   });
 });
+
+describe("app store notes", () => {
+  async function setup() {
+    const store = createAppStore(repo);
+    await store.getState().init();
+    await store.getState().createProject({ key: "WM", name: "Work Manager" });
+    const item = await store.getState().createItem({ title: "A" });
+    return { store, item };
+  }
+
+  it("adds, edits and deletes notes and tracks counts", async () => {
+    const { store, item } = await setup();
+    const a = await store.getState().addNote(item.id, "first");
+    await store.getState().addNote(item.id, "second");
+    expect(store.getState().noteCounts).toEqual({ [item.id]: 2 });
+
+    const edited = await store.getState().updateNote(a.id, "first (edited)");
+    expect(edited.body).toBe("first (edited)");
+    expect((await store.getState().loadNotes(item.id)).map((n) => n.body)).toEqual([
+      "first (edited)",
+      "second",
+    ]);
+
+    await store.getState().deleteNote(item.id, a.id);
+    await store.getState().deleteNote(item.id, (await store.getState().loadNotes(item.id))[0].id);
+    expect(store.getState().noteCounts).toEqual({});
+  });
+
+  it("restores counts on init and clears them when the item is deleted", async () => {
+    const { store, item } = await setup();
+    await store.getState().addNote(item.id, "hello");
+
+    const reloaded = createAppStore(repo);
+    await reloaded.getState().init();
+    expect(reloaded.getState().noteCounts).toEqual({ [item.id]: 1 });
+
+    await reloaded.getState().deleteItem(item.id);
+    expect(reloaded.getState().noteCounts).toEqual({});
+  });
+
+  it("rejects empty notes without changing counts", async () => {
+    const { store, item } = await setup();
+    await expect(store.getState().addNote(item.id, "  ")).rejects.toThrow();
+    expect(store.getState().noteCounts).toEqual({});
+  });
+
+  it("keeps counts per project", async () => {
+    const { store, item } = await setup();
+    await store.getState().addNote(item.id, "x");
+    const first = store.getState().activeProjectId!;
+    await store.getState().createProject({ key: "OT", name: "Other" });
+    expect(store.getState().noteCounts).toEqual({});
+    await store.getState().selectProject(first);
+    expect(store.getState().noteCounts).toEqual({ [item.id]: 1 });
+  });
+});

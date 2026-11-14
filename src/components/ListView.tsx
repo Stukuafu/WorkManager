@@ -17,10 +17,12 @@ import {
   TYPE_LABELS,
 } from "../domain/workflow";
 import { LabelChip, PriorityBadge, TypeBadge } from "./Badges";
+import { NoteCount } from "./NoteCount";
 
 interface ListViewProps {
   projectKey: string;
   items: WorkItem[];
+  noteCounts: Record<string, number>;
   onOpen(item: WorkItem): void;
   onStatusChange(item: WorkItem, status: Status): void;
   onCreate(): void;
@@ -29,7 +31,7 @@ interface ListViewProps {
 const filterSelect =
   "rounded-md border border-line bg-white px-2 py-1.5 text-sm text-ink hover:border-brand-gray";
 
-export function ListView({ projectKey, items, onOpen, onStatusChange, onCreate }: ListViewProps) {
+export function ListView({ projectKey, items, noteCounts, onOpen, onStatusChange, onCreate }: ListViewProps) {
   const [filters, setFilters] = useState<ItemFilters>(DEFAULT_FILTERS);
   const labels = useMemo(() => collectLabels(items), [items]);
   const visible = useMemo(
@@ -169,6 +171,9 @@ export function ListView({ projectKey, items, onOpen, onStatusChange, onCreate }
                       >
                         {item.title}
                       </button>
+                      <span className="ml-2 align-middle">
+                        <NoteCount count={noteCounts[item.id]} />
+                      </span>
                       {item.labels.length > 0 && (
                         <span className="ml-2 inline-flex flex-wrap gap-1 align-middle">
                           {item.labels.map((l) => (
