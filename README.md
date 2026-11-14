@@ -14,7 +14,7 @@ npm run build   # type-check and build
 ## Status
 
 - [x] Milestone 1: foundation (Vite + React + TS, brand theme, data model, storage layer, tests)
-- [ ] Milestone 2: projects
+- [x] Milestone 2: projects (create with a key, switch between projects, last project remembered)
 - [ ] Milestone 3: items and list view
 - [ ] Milestone 4: board
 - [ ] Milestone 5: detail panel

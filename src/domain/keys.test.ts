@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { formatItemKey, isValidProjectKey, normalizeProjectKey, parseItemKey } from "./keys";
+import {
+  formatItemKey,
+  isValidProjectKey,
+  normalizeProjectKey,
+  parseItemKey,
+  suggestProjectKey,
+} from "./keys";
 
 describe("project keys", () => {
   it("normalizes input", () => {
@@ -26,5 +32,23 @@ describe("item keys", () => {
     expect(parseItemKey("WM-0")).toBeNull();
     expect(parseItemKey("WM12")).toBeNull();
     expect(parseItemKey("")).toBeNull();
+  });
+});
+
+describe("suggestProjectKey", () => {
+  it("uses initials for multi-word names", () => {
+    expect(suggestProjectKey("Work Manager")).toBe("WM");
+    expect(suggestProjectKey("a b c d e f g")).toBe("ABCDE");
+  });
+
+  it("uses leading letters for single words", () => {
+    expect(suggestProjectKey("Billing")).toBe("BILL");
+    expect(suggestProjectKey("QA")).toBe("QA");
+  });
+
+  it("ignores digits and punctuation, and handles empty input", () => {
+    expect(suggestProjectKey("Q3 Roadmap!")).toBe("QR");
+    expect(suggestProjectKey("123")).toBe("");
+    expect(suggestProjectKey("")).toBe("");
   });
 });
