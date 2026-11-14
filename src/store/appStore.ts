@@ -3,9 +3,11 @@ import { createStore } from "zustand/vanilla";
 import { planMove } from "../domain/board";
 import type {
   NewProject,
+  ItemFilters,
   NewWorkItem,
   Note,
   Project,
+  SavedFilter,
   Status,
   StatusChange,
   WorkItem,
@@ -25,6 +27,8 @@ export interface AppState {
   items: WorkItem[];
   /** Every note on every item in the active project. */
   notes: Note[];
+  /** Saved filters for the active project, by name. */
+  savedFilters: SavedFilter[];
   /** Load persisted data. Call once on startup. */
   init(): Promise<void>;
   /** Create a project and make it active. Rejects with the repository's validation error. */
@@ -37,6 +41,9 @@ export interface AppState {
   exportData(): Promise<StoredData>;
   /** Replace all data with a validated backup. Throws with a readable message if invalid. */
   importData(raw: unknown): Promise<void>;
+  /** Save the filters under a name; an existing name (ignoring case) is replaced. */
+  saveFilter(name: string, filters: ItemFilters): Promise<SavedFilter>;
+  deleteSavedFilter(id: string): Promise<void>;
   /** Notes on an item, oldest first. */
   loadNotes(itemId: string): Promise<Note[]>;
   addNote(itemId: string, body: string): Promise<Note>;
@@ -68,11 +75,12 @@ export function createAppStore(repo: Repository) {
   return createStore<AppState>((set, get) => {
     /** Load items for a project, ignoring the result if the user has since switched away. */
     async function loadItems(projectId: string): Promise<void> {
-      const [items, notes] = await Promise.all([
+      const [items, notes, savedFilters] = await Promise.all([
         repo.listItems(projectId),
         repo.listProjectNotes(projectId),
+        repo.listSavedFilters(projectId),
       ]);
-      if (get().activeProjectId === projectId) set({ items, notes });
+      if (get().activeProjectId === projectId) set({ items, notes, savedFilters });
     }
 
     function requireActiveProject(): string {
@@ -87,6 +95,7 @@ export function createAppStore(repo: Repository) {
       activeProjectId: null,
       items: [],
       notes: [],
+      savedFilters: [],
 
       async init() {
         const projects = await repo.listProjects();
@@ -95,19 +104,20 @@ export function createAppStore(repo: Repository) {
           projects.find((p) => p.id === saved)?.id ?? projects[0]?.id ?? null;
         const items = activeProjectId ? await repo.listItems(activeProjectId) : [];
         const notes = activeProjectId ? await repo.listProjectNotes(activeProjectId) : [];
-        set({ projects, activeProjectId, items, notes, loaded: true });
+        const savedFilters = activeProjectId ? await repo.listSavedFilters(activeProjectId) : [];
+        set({ projects, activeProjectId, items, notes, savedFilters, loaded: true });
       },
 
       async createProject(input) {
         const project = await repo.createProject(input);
-        set({ projects: [...get().projects, project], activeProjectId: project.id, items: [], notes: [] });
+        set({ projects: [...get().projects, project], activeProjectId: project.id, items: [], notes: [], savedFilters: [] });
         writeActiveId(project.id);
         return project;
       },
 
       async selectProject(id) {
         if (!get().projects.some((p) => p.id === id)) return;
-        set({ activeProjectId: id, items: [], notes: [] });
+        set({ activeProjectId: id, items: [], notes: [], savedFilters: [] });
         writeActiveId(id);
         await loadItems(id);
       },
@@ -148,6 +158,18 @@ export function createAppStore(repo: Repository) {
         const data = parseStoredData(raw);
         await repo.importData(data);
         await get().init();
+      },
+
+      async saveFilter(name, filters) {
+        const projectId = requireActiveProject();
+        const saved = await repo.saveFilter(projectId, name, filters);
+        if (get().activeProjectId === projectId) set({ savedFilters: await repo.listSavedFilters(projectId) });
+        return saved;
+      },
+
+      async deleteSavedFilter(id) {
+        await repo.deleteSavedFilter(id);
+        set({ savedFilters: get().savedFilters.filter((f) => f.id !== id) });
       },
 
       async loadNotes(itemId) {

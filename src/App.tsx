@@ -35,6 +35,9 @@ export default function App() {
   const updateNote = useAppStore((s) => s.updateNote);
   const deleteNote = useAppStore((s) => s.deleteNote);
   const notes = useAppStore((s) => s.notes);
+  const savedFilters = useAppStore((s) => s.savedFilters);
+  const saveFilter = useAppStore((s) => s.saveFilter);
+  const deleteSavedFilter = useAppStore((s) => s.deleteSavedFilter);
   const noteCounts = useMemo(() => countNotes(notes), [notes]);
   const noteText = useMemo(() => indexNotes(notes), [notes]);
   const exportData = useAppStore((s) => s.exportData);
@@ -159,6 +162,11 @@ export default function App() {
                 items={items}
                 noteCounts={noteCounts}
                 noteText={noteText}
+                savedFilters={savedFilters}
+                onSaveFilter={async (name, filters) => {
+                  await saveFilter(name, filters);
+                }}
+                onDeleteSavedFilter={deleteSavedFilter}
                 onOpen={(item) => setOpenItemId(item.id)}
                 onCreate={() => setCreatingItem(true)}
                 onStatusChange={(item, status) => {

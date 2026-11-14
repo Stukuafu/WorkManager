@@ -1,15 +1,7 @@
-import type { ItemType, Priority, Status, WorkItem } from "./types";
+import type { ItemFilters, WorkItem } from "./types";
 import { formatItemKey } from "./keys";
 
-export interface ItemFilters {
-  query: string;
-  status: Status | "all";
-  priority: Priority | "all";
-  type: ItemType | "all";
-  label: string | "all";
-  /** Only tasks of this story (by story id). */
-  parent: string | "all";
-}
+export type { ItemFilters } from "./types";
 
 export const DEFAULT_FILTERS: ItemFilters = {
   query: "",

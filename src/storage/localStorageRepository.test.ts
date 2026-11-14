@@ -324,6 +324,69 @@ describe("stories and tasks", () => {
   });
 });
 
+describe("saved filters", () => {
+  const bugs = { query: "  crash ", status: "all", priority: "high", type: "bug", label: "all", parent: "all" } as const;
+
+  async function setup() {
+    const p = await repo.createProject({ key: "WM", name: "Work Manager" });
+    return { p };
+  }
+
+  it("saves filters (normalised) and lists them by name", async () => {
+    const { p } = await setup();
+    await repo.saveFilter(p.id, "Zebra", bugs);
+    const saved = await repo.saveFilter(p.id, "  apple ", bugs);
+    expect(saved.name).toBe("apple");
+    expect(saved.filters.query).toBe("crash");
+    expect((await repo.listSavedFilters(p.id)).map((f) => f.name)).toEqual(["apple", "Zebra"]);
+  });
+
+  it("replaces a filter with the same name, ignoring case", async () => {
+    const { p } = await setup();
+    const first = await repo.saveFilter(p.id, "My bugs", bugs);
+    const second = await repo.saveFilter(p.id, "my BUGS", { ...bugs, priority: "low" });
+    expect(second.id).toBe(first.id);
+    expect(second.name).toBe("my BUGS");
+    expect(second.filters.priority).toBe("low");
+    expect(await repo.listSavedFilters(p.id)).toHaveLength(1);
+  });
+
+  it("keeps filters separate per project, and allows the same name in two projects", async () => {
+    const { p } = await setup();
+    const other = await repo.createProject({ key: "OT", name: "Other" });
+    await repo.saveFilter(p.id, "Same", bugs);
+    await repo.saveFilter(other.id, "Same", bugs);
+    expect(await repo.listSavedFilters(p.id)).toHaveLength(1);
+    expect(await repo.listSavedFilters(other.id)).toHaveLength(1);
+  });
+
+  it("rejects bad names, unknown projects and too many filters", async () => {
+    const { p } = await setup();
+    await expect(repo.saveFilter(p.id, "  ", bugs)).rejects.toThrow(RepositoryError);
+    await expect(repo.saveFilter(p.id, "x".repeat(61), bugs)).rejects.toThrow(/at most 60/);
+    await expect(repo.saveFilter("missing", "A", bugs)).rejects.toThrow(/Project not found/);
+    for (let i = 0; i < 30; i++) await repo.saveFilter(p.id, `Filter ${i}`, bugs);
+    await expect(repo.saveFilter(p.id, "One too many", bugs)).rejects.toThrow(/at most 30/);
+    // Replacing an existing one is still fine at the limit.
+    await expect(repo.saveFilter(p.id, "filter 3", bugs)).resolves.toBeDefined();
+  });
+
+  it("deletes a saved filter", async () => {
+    const { p } = await setup();
+    const saved = await repo.saveFilter(p.id, "Temp", bugs);
+    await repo.deleteSavedFilter(saved.id);
+    expect(await repo.listSavedFilters(p.id)).toEqual([]);
+  });
+
+  it("keeps saved filters through export and import", async () => {
+    const { p } = await setup();
+    await repo.saveFilter(p.id, "Keep me", bugs);
+    const other = new LocalStorageRepository(new MemoryStorage());
+    await other.importData(JSON.parse(JSON.stringify(await repo.exportData())));
+    expect((await other.listSavedFilters(p.id)).map((f) => f.name)).toEqual(["Keep me"]);
+  });
+});
+
 describe("export / import", () => {
   it("round-trips data", async () => {
     const p = await repo.createProject({ key: "WM", name: "Work Manager" });
@@ -356,7 +419,8 @@ describe("export / import", () => {
     expect((await repo.listProjects()).map((p) => p.name)).toEqual(["Old"]);
     await repo.createProject({ key: "NW", name: "New" });
     const saved = await repo.exportData();
-    expect(saved.version).toBe(3);
+    expect(saved.version).toBe(4);
+    expect(saved.savedFilters).toEqual([]);
     expect(saved.notes).toEqual([]);
   });
 

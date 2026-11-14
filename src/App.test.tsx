@@ -321,4 +321,53 @@ describe("App projects flow", () => {
     await user.type(screen.getByLabelText("Search items"), "safari");
     expect(screen.getByText("No items match your filters.")).toBeInTheDocument();
   });
+
+  it("saves, reapplies, replaces and deletes filters, and drops ones that no longer apply", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await newProject(user);
+    await newItem(user, "Crash on login", { type: "bug", priority: "high" });
+    await newItem(user, "Tidy docs", { priority: "low" });
+    await newItem(user, "Slow search", { type: "bug", priority: "low" });
+
+    const count = () => within(screen.getByRole("table")).getAllByRole("row").length - 1;
+
+    // Nothing to save until a filter is active.
+    expect(screen.queryByRole("button", { name: "Save filters" })).not.toBeInTheDocument();
+    await user.selectOptions(screen.getByLabelText("Filter by type"), "bug");
+    expect(count()).toBe(2);
+    await user.click(screen.getByRole("button", { name: "Save filters" }));
+    await user.type(screen.getByLabelText("Name for these filters"), "My bugs");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    // It is now selected, and clearing then picking it brings the filter back.
+    expect(await screen.findByLabelText("Saved filters")).toHaveValue(
+      (screen.getByRole("option", { name: "My bugs" }) as HTMLOptionElement).value,
+    );
+    await user.click(screen.getByRole("button", { name: "Clear filters" }));
+    expect(count()).toBe(3);
+    await user.selectOptions(screen.getByLabelText("Saved filters"), "My bugs");
+    expect(count()).toBe(2);
+    expect(screen.getByLabelText("Filter by type")).toHaveValue("bug");
+
+    // Tweak the filters and save under the same name: it replaces rather than duplicates.
+    await user.selectOptions(screen.getByLabelText("Filter by priority"), "high");
+    expect(count()).toBe(1);
+    await user.click(screen.getByRole("button", { name: "Save filters" }));
+    await user.type(screen.getByLabelText("Name for these filters"), "my bugs");
+    await user.click(screen.getByRole("button", { name: "Replace" }));
+    expect(within(screen.getByLabelText("Saved filters")).getAllByRole("option")).toHaveLength(2); // placeholder + 1
+
+    // Saved filters survive a reload.
+    cleanup();
+    render(<App />);
+    await user.click(await screen.findByRole("tab", { name: "list" }));
+    await user.selectOptions(await screen.findByLabelText("Saved filters"), "my bugs");
+    expect(count()).toBe(1);
+
+    // Delete it.
+    await user.click(screen.getByRole("button", { name: "Delete saved filter" }));
+    await user.click(screen.getByRole("button", { name: "Yes, delete" }));
+    expect(screen.queryByLabelText("Saved filters")).not.toBeInTheDocument();
+  });
 });

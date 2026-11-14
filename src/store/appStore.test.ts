@@ -235,3 +235,47 @@ describe("app store notes", () => {
     expect(countNotes(store.getState().notes)).toEqual({ [item.id]: 1 });
   });
 });
+
+describe("app store saved filters", () => {
+  const filters = { query: "crash", status: "all", priority: "high", type: "bug", label: "all", parent: "all" } as const;
+
+  async function setup() {
+    const store = createAppStore(repo);
+    await store.getState().init();
+    await store.getState().createProject({ key: "WM", name: "Work Manager" });
+    return store;
+  }
+
+  it("saves, replaces and deletes filters", async () => {
+    const store = await setup();
+    const saved = await store.getState().saveFilter("My bugs", filters);
+    expect(store.getState().savedFilters.map((f) => f.name)).toEqual(["My bugs"]);
+
+    await store.getState().saveFilter("my bugs", { ...filters, priority: "low" });
+    expect(store.getState().savedFilters).toHaveLength(1);
+    expect(store.getState().savedFilters[0].filters.priority).toBe("low");
+
+    await store.getState().deleteSavedFilter(saved.id);
+    expect(store.getState().savedFilters).toEqual([]);
+  });
+
+  it("keeps filters per project and restores them on init", async () => {
+    const store = await setup();
+    const first = store.getState().activeProjectId!;
+    await store.getState().saveFilter("Mine", filters);
+    await store.getState().createProject({ key: "OT", name: "Other" });
+    expect(store.getState().savedFilters).toEqual([]);
+    await store.getState().selectProject(first);
+    expect(store.getState().savedFilters.map((f) => f.name)).toEqual(["Mine"]);
+
+    const reloaded = createAppStore(repo);
+    await reloaded.getState().init();
+    expect(reloaded.getState().savedFilters.map((f) => f.name)).toEqual(["Mine"]);
+  });
+
+  it("rejects bad names without changing state", async () => {
+    const store = await setup();
+    await expect(store.getState().saveFilter("   ", filters)).rejects.toThrow();
+    expect(store.getState().savedFilters).toEqual([]);
+  });
+});

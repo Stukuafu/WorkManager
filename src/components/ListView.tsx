@@ -9,8 +9,9 @@ import {
 } from "../domain/filter";
 import { storiesIn, storyProgress } from "../domain/hierarchy";
 import { formatItemKey } from "../domain/keys";
+import { sanitizeFilters } from "../domain/savedFilters";
 import { DEFAULT_SORT, nextSort, type SortField, type SortState, sortItems } from "../domain/sort";
-import type { Status, WorkItem } from "../domain/types";
+import type { SavedFilter, Status, WorkItem } from "../domain/types";
 import {
   ITEM_TYPES,
   PRIORITIES,
@@ -21,6 +22,7 @@ import {
 } from "../domain/workflow";
 import { LabelChip, PriorityBadge, TypeBadge } from "./Badges";
 import { NoteCount } from "./NoteCount";
+import { SavedFilters } from "./SavedFilters";
 import { Progress } from "./Progress";
 
 interface ListViewProps {
@@ -29,6 +31,9 @@ interface ListViewProps {
   noteCounts: Record<string, number>;
   /** Each item's note text, lower-cased, for searching. */
   noteText: Record<string, string>;
+  savedFilters: SavedFilter[];
+  onSaveFilter(name: string, filters: ItemFilters): Promise<void>;
+  onDeleteSavedFilter(id: string): Promise<void>;
   onOpen(item: WorkItem): void;
   onStatusChange(item: WorkItem, status: Status): void;
   onCreate(): void;
@@ -51,6 +56,9 @@ export function ListView({
   items,
   noteCounts,
   noteText,
+  savedFilters,
+  onSaveFilter,
+  onDeleteSavedFilter,
   onOpen,
   onStatusChange,
   onCreate,
@@ -166,6 +174,14 @@ export function ListView({
             ))}
           </select>
         )}
+        <SavedFilters
+          saved={savedFilters}
+          current={filters}
+          active={hasActiveFilters(filters)}
+          onApply={(f) => setFilters(sanitizeFilters(f, items))}
+          onSave={(name) => onSaveFilter(name, filters)}
+          onDelete={onDeleteSavedFilter}
+        />
         {hasActiveFilters(filters) && (
           <button
             type="button"

@@ -1,12 +1,16 @@
 import { planMove } from "../domain/board";
 import { childrenOf, parentError } from "../domain/hierarchy";
 import { isValidProjectKey, normalizeProjectKey } from "../domain/keys";
+import { checkFilterName, normalizeFilters } from "../domain/savedFilters";
 import {
   MAX_NOTE_LENGTH,
+  MAX_SAVED_FILTERS_PER_PROJECT,
+  type ItemFilters,
   type NewProject,
   type NewWorkItem,
   type Note,
   type Project,
+  type SavedFilter,
   type Status,
   type StatusChange,
   type WorkItem,
@@ -26,7 +30,7 @@ const STORAGE_KEY = "work-manager:data";
 type StorageLike = Pick<Storage, "getItem" | "setItem">;
 
 function emptyData(): StoredData {
-  return { version: SCHEMA_VERSION, projects: [], items: [], statusChanges: [], notes: [] };
+  return { version: SCHEMA_VERSION, projects: [], items: [], statusChanges: [], notes: [], savedFilters: [] };
 }
 
 function now(): string {
@@ -307,6 +311,52 @@ export class LocalStorageRepository implements Repository {
     return data.notes
       .filter((n) => itemIds.has(n.itemId))
       .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+  }
+
+  async listSavedFilters(projectId: string): Promise<SavedFilter[]> {
+    return this.load()
+      .savedFilters.filter((f) => f.projectId === projectId)
+      .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }));
+  }
+
+  async saveFilter(projectId: string, name: string, filters: ItemFilters): Promise<SavedFilter> {
+    const data = this.load();
+    if (!data.projects.some((p) => p.id === projectId)) throw new RepositoryError("Project not found");
+    const checked = checkFilterName(name);
+    if (checked.error !== undefined) throw new RepositoryError(checked.error);
+
+    const timestamp = now();
+    const clean = normalizeFilters(filters);
+    const existing = data.savedFilters.find(
+      (f) => f.projectId === projectId && f.name.toLowerCase() === checked.name.toLowerCase(),
+    );
+    if (existing) {
+      existing.name = checked.name;
+      existing.filters = clean;
+      existing.updatedAt = timestamp;
+      this.save(data);
+      return existing;
+    }
+    if (data.savedFilters.filter((f) => f.projectId === projectId).length >= MAX_SAVED_FILTERS_PER_PROJECT) {
+      throw new RepositoryError(`You can save at most ${MAX_SAVED_FILTERS_PER_PROJECT} filters per project`);
+    }
+    const saved: SavedFilter = {
+      id: newId(),
+      projectId,
+      name: checked.name,
+      filters: clean,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    };
+    data.savedFilters.push(saved);
+    this.save(data);
+    return saved;
+  }
+
+  async deleteSavedFilter(id: string): Promise<void> {
+    const data = this.load();
+    data.savedFilters = data.savedFilters.filter((f) => f.id !== id);
+    this.save(data);
   }
 
   async exportData(): Promise<StoredData> {

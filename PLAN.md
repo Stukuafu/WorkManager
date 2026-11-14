@@ -137,6 +137,9 @@ Each milestone ends with something you can click through.
 
 - **Stories with tasks:** `WorkItem.parentId`. Only stories can have children (tasks or bugs); stories cannot nest; parent and child must share a project. A story's progress is calculated from its tasks (done / total); its own status stays manual. Deleting a story keeps its tasks and unlinks them. A story with tasks cannot be changed to another type. Schema is now **version 3**; versions 1 and 2 upgrade automatically.
 
+- **Search in notes:** the list search also matches note text; rows that matched only through a note are labelled.
+- **Saved filters:** named sets of list filters, per project (`SavedFilter`). Saving under an existing name (ignoring case) replaces it; at most 30 per project. A saved label or story that no longer exists is dropped when the filter is applied. Schema is now **version 4**; versions 1-3 upgrade automatically.
+
 ## 8. Out of scope for the PoC (possible later)
 
 Sprints and backlog, time tracking and estimates, dashboards and burndown, custom workflows, multi-user accounts and assignees, notifications, attachments, a backend (Supabase or a Node API), and dark mode.

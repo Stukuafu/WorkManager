@@ -18,12 +18,21 @@ const item = {
   updatedAt: "t",
 };
 const note = { id: "n1", itemId: "i1", body: "hello", createdAt: "t", updatedAt: "t" };
+const savedFilter = {
+  id: "f1",
+  projectId: "p1",
+  name: "My bugs",
+  filters: { query: "crash", status: "all", priority: "high", type: "bug", label: "all", parent: "all" },
+  createdAt: "t",
+  updatedAt: "t",
+};
 const valid = () => ({
-  version: 3,
+  version: 4,
   projects: [{ ...project }],
   items: [{ ...item }],
   statusChanges: [{ id: "c1", itemId: "i1", from: null, to: "todo", at: "t" }],
   notes: [{ ...note }],
+  savedFilters: [{ ...savedFilter, filters: { ...savedFilter.filters } }],
 });
 
 describe("parseStoredData", () => {
@@ -44,16 +53,27 @@ describe("parseStoredData", () => {
   });
 
   it("migrates version 1 data (no notes) to the current version", () => {
-    const { notes: _notes, ...v1 } = valid();
+    const { notes: _notes, savedFilters: _filters, ...v1 } = valid();
     const result = parseStoredData({ ...v1, version: 1 });
-    expect(result.version).toBe(3);
+    expect(result.version).toBe(4);
     expect(result.notes).toEqual([]);
+    expect(result.savedFilters).toEqual([]);
     expect(result.items).toEqual(valid().items);
   });
 
   it("migrates version 2 data (notes, no parent links) to the current version", () => {
-    const result = parseStoredData({ ...valid(), version: 2 });
-    expect(result.version).toBe(3);
+    const { savedFilters: _filters, ...v2 } = valid();
+    const result = parseStoredData({ ...v2, version: 2 });
+    expect(result.version).toBe(4);
+    expect(result.notes).toHaveLength(1);
+    expect(result.savedFilters).toEqual([]);
+  });
+
+  it("migrates version 3 data (no saved filters) to the current version", () => {
+    const { savedFilters: _filters, ...v3 } = valid();
+    const result = parseStoredData({ ...v3, version: 3 });
+    expect(result.version).toBe(4);
+    expect(result.savedFilters).toEqual([]);
     expect(result.notes).toHaveLength(1);
   });
 
@@ -88,6 +108,14 @@ describe("parseStoredData", () => {
     ["labels not a list", (d) => ((d.items[0] as Record<string, unknown>).labels = "x"), /labels/],
     ["bad status change", (d) => ((d.statusChanges[0] as Record<string, unknown>).to = "nope"), /"to"/],
     ["future version", (d) => (d.version = 99), /version/],
+    ["saved filter for an unknown project", (d) => (d.savedFilters[0].projectId = "ghost"), /unknown project/],
+    ["saved filter with a blank name", (d) => (d.savedFilters[0].name = "  "), /"name"/],
+    ["saved filter with a bad status", (d) => ((d.savedFilters[0].filters as Record<string, unknown>).status = "bogus"), /status/],
+    ["saved filter with non-text search", (d) => ((d.savedFilters[0].filters as Record<string, unknown>).query = 5), /query/],
+    ["saved filter with overlong search", (d) => (d.savedFilters[0].filters.query = "x".repeat(201)), /too long/],
+    ["saved filter without filters", (d) => ((d.savedFilters[0] as Record<string, unknown>).filters = null), /"filters"/],
+    ["duplicate saved filter ids", (d) => d.savedFilters.push({ ...savedFilter, name: "Other" }), /Duplicate saved filter ids/],
+    ["duplicate saved filter names", (d) => d.savedFilters.push({ ...savedFilter, id: "f2", name: "MY BUGS" }), /Duplicate saved filter names/],
     ["parent that does not exist", (d) => ((d.items[0] as Record<string, unknown>).parentId = "ghost"), /no longer exists/],
     ["parent that is not a story", (d) => d.items.push({ ...item, id: "t2", number: 2, parentId: "i1" } as typeof item), /Only stories/],
     ["story with a parent", (d) => d.items.push({ ...item, id: "s2", number: 2, type: "story", parentId: "i1" } as typeof item), /story can't belong/],
@@ -113,5 +141,8 @@ describe("parseStoredData", () => {
     const noNotes = valid() as Record<string, unknown>;
     delete noNotes.notes;
     expect(() => parseStoredData(noNotes)).toThrow(/"notes"/);
+    const noFilters = valid() as Record<string, unknown>;
+    delete noFilters.savedFilters;
+    expect(() => parseStoredData(noFilters)).toThrow(/"savedFilters"/);
   });
 });

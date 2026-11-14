@@ -54,6 +54,31 @@ export interface Note {
 
 export const MAX_NOTE_LENGTH = 10_000;
 
+/** The list view's search and filter choices. "all" means no restriction. */
+export interface ItemFilters {
+  query: string;
+  status: Status | "all";
+  priority: Priority | "all";
+  type: ItemType | "all";
+  label: string | "all";
+  /** Only tasks of this story (by story id). */
+  parent: string | "all";
+}
+
+/** A named set of filters, saved per project. */
+export interface SavedFilter {
+  id: string;
+  projectId: string;
+  name: string;
+  filters: ItemFilters;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export const MAX_FILTER_NAME_LENGTH = 60;
+export const MAX_SEARCH_LENGTH = 200;
+export const MAX_SAVED_FILTERS_PER_PROJECT = 30;
+
 export type NewProject = Pick<Project, "key" | "name">;
 
 export type NewWorkItem = Pick<WorkItem, "title"> &

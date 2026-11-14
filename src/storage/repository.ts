@@ -1,15 +1,17 @@
 import type {
+  ItemFilters,
   NewProject,
   NewWorkItem,
   Note,
   Project,
+  SavedFilter,
   Status,
   StatusChange,
   WorkItem,
   WorkItemPatch,
 } from "../domain/types";
 
-export const SCHEMA_VERSION = 3;
+export const SCHEMA_VERSION = 4;
 
 export interface StoredData {
   version: number;
@@ -17,6 +19,7 @@ export interface StoredData {
   items: WorkItem[];
   statusChanges: StatusChange[];
   notes: Note[];
+  savedFilters: SavedFilter[];
 }
 
 /**
@@ -46,6 +49,12 @@ export interface Repository {
   deleteNote(id: string): Promise<void>;
   /** Every note on every item in a project, oldest first. */
   listProjectNotes(projectId: string): Promise<Note[]>;
+
+  /** Saved filters for a project, by name. */
+  listSavedFilters(projectId: string): Promise<SavedFilter[]>;
+  /** Save filters under a name. A name already used in the project (ignoring case) is replaced. */
+  saveFilter(projectId: string, name: string, filters: ItemFilters): Promise<SavedFilter>;
+  deleteSavedFilter(id: string): Promise<void>;
 
   exportData(): Promise<StoredData>;
   importData(data: unknown): Promise<void>;

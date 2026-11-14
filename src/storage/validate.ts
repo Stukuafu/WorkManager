@@ -1,6 +1,17 @@
 import { parentError } from "../domain/hierarchy";
 import { isValidProjectKey } from "../domain/keys";
-import { MAX_NOTE_LENGTH, type Note, type Project, type StatusChange, type WorkItem } from "../domain/types";
+import {
+  type ItemFilters,
+  MAX_FILTER_NAME_LENGTH,
+  MAX_NOTE_LENGTH,
+  MAX_SAVED_FILTERS_PER_PROJECT,
+  MAX_SEARCH_LENGTH,
+  type Note,
+  type Project,
+  type SavedFilter,
+  type StatusChange,
+  type WorkItem,
+} from "../domain/types";
 import { ITEM_TYPES, PRIORITIES, STATUSES } from "../domain/workflow";
 import { RepositoryError, SCHEMA_VERSION, type StoredData } from "./repository";
 
@@ -60,7 +71,8 @@ export function parseStoredData(raw: unknown): StoredData {
   if (typeof raw.version !== "number" || raw.version > SCHEMA_VERSION || raw.version < 1) {
     fail(`Unsupported data version: ${String(raw.version)}`);
   }
-  // Older versions only lack newer optional data: v1 had no notes, v1-v2 had no parent links.
+  // Older versions only lack newer optional data: v1 had no notes, v1-v2 had no parent links,
+  // v1-v3 had no saved filters.
   // Migrating is just defaulting those, so nothing else needs converting.
 
   const projects: Project[] = list(raw, "projects").map((entry, i) => {
@@ -163,5 +175,42 @@ export function parseStoredData(raw: unknown): StoredData {
     .filter((n) => itemIds.has(n.itemId)); // drop notes for items that no longer exist
   if (new Set(notes.map((n) => n.id)).size !== notes.length) fail("Duplicate note ids");
 
-  return { version: SCHEMA_VERSION, projects, items, statusChanges, notes };
+  const savedFilters: SavedFilter[] = (raw.version >= 4 ? list(raw, "savedFilters") : []).map((entry, i) => {
+    const where = `Saved filter ${i + 1}`;
+    if (!isRec(entry)) fail(`${where} is not an object`);
+    const projectId = str(entry, "projectId", where);
+    if (!projectIds.has(projectId)) fail(`${where}: refers to an unknown project`);
+    const name = str(entry, "name", where).trim();
+    if (!name || name.length > MAX_FILTER_NAME_LENGTH) fail(`${where}: "name" must be 1-${MAX_FILTER_NAME_LENGTH} characters`);
+    const f = entry.filters;
+    if (!isRec(f)) fail(`${where}: "filters" must be an object`);
+    const query = str(f, "query", `${where} filters`);
+    if (query.length > MAX_SEARCH_LENGTH) fail(`${where}: search text is too long`);
+    const filters: ItemFilters = {
+      query,
+      status: oneOf(f, "status", ["all", ...STATUSES], `${where} filters`),
+      priority: oneOf(f, "priority", ["all", ...PRIORITIES], `${where} filters`),
+      type: oneOf(f, "type", ["all", ...ITEM_TYPES], `${where} filters`),
+      label: str(f, "label", `${where} filters`),
+      parent: str(f, "parent", `${where} filters`),
+    };
+    return {
+      id: str(entry, "id", where),
+      projectId,
+      name,
+      filters,
+      createdAt: str(entry, "createdAt", where),
+      updatedAt: str(entry, "updatedAt", where),
+    };
+  });
+  if (new Set(savedFilters.map((f) => f.id)).size !== savedFilters.length) fail("Duplicate saved filter ids");
+  const nameKeys = savedFilters.map((f) => `${f.projectId}:${f.name.toLowerCase()}`);
+  if (new Set(nameKeys).size !== nameKeys.length) fail("Duplicate saved filter names in a project");
+  for (const project of projects) {
+    if (savedFilters.filter((f) => f.projectId === project.id).length > MAX_SAVED_FILTERS_PER_PROJECT) {
+      fail(`Project ${project.key} has too many saved filters`);
+    }
+  }
+
+  return { version: SCHEMA_VERSION, projects, items, statusChanges, notes, savedFilters };
 }
