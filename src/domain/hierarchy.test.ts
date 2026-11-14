@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { childrenOf, parentError, storiesIn, storyProgress } from "./hierarchy";
+import { allStories, childrenOf, parentError, storiesIn, storyProgress } from "./hierarchy";
 import type { ItemType, Status, WorkItem } from "./types";
 
 function item(number: number, type: ItemType, extra: Partial<WorkItem> = {}): WorkItem {
@@ -67,5 +67,28 @@ describe("storyProgress", () => {
 
   it("is zero for a story with no tasks", () => {
     expect(storyProgress(items, "i6")).toEqual({ done: 0, total: 0, percent: 0 });
+  });
+});
+
+describe("archived stories", () => {
+  const archivedStory = { ...item(6, "story"), archivedAt: "2026-11-01T00:00:00.000Z" };
+  const all = [item(1, "story"), archivedStory];
+
+  it("are not offered as parents, unless they are the current parent", () => {
+    expect(storiesIn(all).map((i) => i.number)).toEqual([1]);
+    expect(storiesIn(all, undefined, "i6").map((i) => i.number)).toEqual([1, 6]);
+  });
+
+  it("are still listed by allStories", () => {
+    expect(allStories(all).map((i) => i.number)).toEqual([1, 6]);
+  });
+
+  it("still count towards a story's progress", () => {
+    const withTasks = [
+      item(1, "story"),
+      item(2, "task", { parentId: "i1", status: "done", archivedAt: "2026-11-01T00:00:00.000Z" }),
+      item(3, "task", { parentId: "i1" }),
+    ];
+    expect(storyProgress(withTasks, "i1")).toEqual({ done: 1, total: 2, percent: 50 });
   });
 });

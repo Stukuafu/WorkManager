@@ -36,7 +36,7 @@ export function StoryTasks({
   const [linkId, setLinkId] = useState("");
   // Tasks and bugs that do not belong to any story yet.
   const available = items
-    .filter((i) => i.type !== "story" && !i.parentId)
+    .filter((i) => i.type !== "story" && !i.parentId && !i.archivedAt)
     .sort((a, b) => a.number - b.number);
   const tasks = items.filter((i) => i.parentId === story.id).sort((a, b) => a.number - b.number);
   const progress = storyProgress(items, story.id);
@@ -151,6 +151,9 @@ export function StoryTasks({
                 >
                   {task.title}
                 </button>
+                {task.archivedAt && (
+                  <span className="rounded-md border border-line px-1.5 py-0.5 text-xs italic">Archived</span>
+                )}
                 <TypeBadge type={task.type} />
                 <PriorityBadge priority={task.priority} />
                 <select

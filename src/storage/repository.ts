@@ -1,4 +1,5 @@
 import type {
+  BulkPatch,
   ItemFilters,
   NewProject,
   NewWorkItem,
@@ -11,7 +12,7 @@ import type {
   WorkItemPatch,
 } from "../domain/types";
 
-export const SCHEMA_VERSION = 4;
+export const SCHEMA_VERSION = 5;
 
 export interface StoredData {
   version: number;
@@ -35,6 +36,15 @@ export interface Repository {
   createItem(projectId: string, input: NewWorkItem): Promise<WorkItem>;
   updateItem(id: string, patch: WorkItemPatch): Promise<WorkItem>;
   deleteItem(id: string): Promise<void>;
+  /**
+   * Apply the same change to several items. All-or-nothing: if any item cannot take it,
+   * nothing changes and the error says why. Returns the updated items.
+   */
+  updateItems(ids: string[], patch: BulkPatch): Promise<WorkItem[]>;
+  /** Delete several items (tasks of deleted stories are kept, unlinked). */
+  deleteItems(ids: string[]): Promise<void>;
+  /** Archive or unarchive items. Unarchived items return to the bottom of their column. Returns the items that changed. */
+  setArchived(ids: string[], archived: boolean): Promise<WorkItem[]>;
   /**
    * Move an item to a column and position (0 = top). Renumbers the affected
    * columns and logs the status change. Returns every item that changed.

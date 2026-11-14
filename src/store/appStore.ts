@@ -2,8 +2,9 @@ import { useStore } from "zustand";
 import { createStore } from "zustand/vanilla";
 import { planMove } from "../domain/board";
 import type {
-  NewProject,
+  BulkPatch,
   ItemFilters,
+  NewProject,
   NewWorkItem,
   Note,
   Project,
@@ -41,6 +42,11 @@ export interface AppState {
   exportData(): Promise<StoredData>;
   /** Replace all data with a validated backup. Throws with a readable message if invalid. */
   importData(raw: unknown): Promise<void>;
+  /** Apply one change to several items at once (all-or-nothing). */
+  updateItems(ids: string[], patch: BulkPatch): Promise<void>;
+  deleteItems(ids: string[]): Promise<void>;
+  /** Archive or unarchive items. */
+  setArchived(ids: string[], archived: boolean): Promise<void>;
   /** Save the filters under a name; an existing name (ignoring case) is replaced. */
   saveFilter(name: string, filters: ItemFilters): Promise<SavedFilter>;
   deleteSavedFilter(id: string): Promise<void>;
@@ -196,6 +202,24 @@ export function createAppStore(repo: Repository) {
       async loadHistory(id) {
         const changes = await repo.listStatusChanges(id);
         return [...changes].sort((a, b) => a.at.localeCompare(b.at));
+      },
+
+      async updateItems(ids, patch) {
+        const projectId = requireActiveProject();
+        await repo.updateItems(ids, patch);
+        await loadItems(projectId);
+      },
+
+      async deleteItems(ids) {
+        const projectId = requireActiveProject();
+        await repo.deleteItems(ids);
+        await loadItems(projectId);
+      },
+
+      async setArchived(ids, archived) {
+        const projectId = requireActiveProject();
+        await repo.setArchived(ids, archived);
+        await loadItems(projectId);
       },
 
       async moveItem(id, status, index) {

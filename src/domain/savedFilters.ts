@@ -10,7 +10,8 @@ export function equalFilters(a: ItemFilters, b: ItemFilters): boolean {
     a.priority === b.priority &&
     a.type === b.type &&
     a.label === b.label &&
-    a.parent === b.parent
+    a.parent === b.parent &&
+    a.archived === b.archived
   );
 }
 

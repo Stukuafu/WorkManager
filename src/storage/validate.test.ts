@@ -22,12 +22,12 @@ const savedFilter = {
   id: "f1",
   projectId: "p1",
   name: "My bugs",
-  filters: { query: "crash", status: "all", priority: "high", type: "bug", label: "all", parent: "all" },
+  filters: { query: "crash", status: "all", priority: "high", type: "bug", label: "all", parent: "all", archived: "hide" },
   createdAt: "t",
   updatedAt: "t",
 };
 const valid = () => ({
-  version: 4,
+  version: 5,
   projects: [{ ...project }],
   items: [{ ...item }],
   statusChanges: [{ id: "c1", itemId: "i1", from: null, to: "todo", at: "t" }],
@@ -55,7 +55,7 @@ describe("parseStoredData", () => {
   it("migrates version 1 data (no notes) to the current version", () => {
     const { notes: _notes, savedFilters: _filters, ...v1 } = valid();
     const result = parseStoredData({ ...v1, version: 1 });
-    expect(result.version).toBe(4);
+    expect(result.version).toBe(5);
     expect(result.notes).toEqual([]);
     expect(result.savedFilters).toEqual([]);
     expect(result.items).toEqual(valid().items);
@@ -64,15 +64,30 @@ describe("parseStoredData", () => {
   it("migrates version 2 data (notes, no parent links) to the current version", () => {
     const { savedFilters: _filters, ...v2 } = valid();
     const result = parseStoredData({ ...v2, version: 2 });
-    expect(result.version).toBe(4);
+    expect(result.version).toBe(5);
     expect(result.notes).toHaveLength(1);
     expect(result.savedFilters).toEqual([]);
+  });
+
+  it("migrates version 4 data (no archived items, filters without an archive mode)", () => {
+    const v4 = valid();
+    delete (v4.savedFilters[0].filters as Record<string, unknown>).archived;
+    const result = parseStoredData({ ...v4, version: 4 });
+    expect(result.version).toBe(5);
+    expect(result.savedFilters[0].filters.archived).toBe("hide");
+    expect(result.items[0].archivedAt).toBeUndefined();
+  });
+
+  it("keeps archived items", () => {
+    const data = valid();
+    (data.items[0] as Record<string, unknown>).archivedAt = "2026-11-20T00:00:00.000Z";
+    expect(parseStoredData(data).items[0].archivedAt).toBe("2026-11-20T00:00:00.000Z");
   });
 
   it("migrates version 3 data (no saved filters) to the current version", () => {
     const { savedFilters: _filters, ...v3 } = valid();
     const result = parseStoredData({ ...v3, version: 3 });
-    expect(result.version).toBe(4);
+    expect(result.version).toBe(5);
     expect(result.savedFilters).toEqual([]);
     expect(result.notes).toHaveLength(1);
   });
@@ -108,6 +123,8 @@ describe("parseStoredData", () => {
     ["labels not a list", (d) => ((d.items[0] as Record<string, unknown>).labels = "x"), /labels/],
     ["bad status change", (d) => ((d.statusChanges[0] as Record<string, unknown>).to = "nope"), /"to"/],
     ["future version", (d) => (d.version = 99), /version/],
+    ["non-text archivedAt", (d) => ((d.items[0] as Record<string, unknown>).archivedAt = 5), /archivedAt/],
+    ["bad archive mode in a saved filter", (d) => ((d.savedFilters[0].filters as Record<string, unknown>).archived = "maybe"), /archived/],
     ["saved filter for an unknown project", (d) => (d.savedFilters[0].projectId = "ghost"), /unknown project/],
     ["saved filter with a blank name", (d) => (d.savedFilters[0].name = "  "), /"name"/],
     ["saved filter with a bad status", (d) => ((d.savedFilters[0].filters as Record<string, unknown>).status = "bogus"), /status/],

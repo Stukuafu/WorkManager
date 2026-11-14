@@ -3,6 +3,7 @@ import { childrenOf, parentError } from "../domain/hierarchy";
 import { isValidProjectKey, normalizeProjectKey } from "../domain/keys";
 import { checkFilterName, normalizeFilters } from "../domain/savedFilters";
 import {
+  type BulkPatch,
   MAX_NOTE_LENGTH,
   MAX_SAVED_FILTERS_PER_PROJECT,
   type ItemFilters,
@@ -35,6 +36,14 @@ function emptyData(): StoredData {
 
 function now(): string {
   return new Date().toISOString();
+}
+
+/** Position at the bottom of the item's board column (archived items are not on the board). */
+function bottomOrder(data: StoredData, item: WorkItem): number {
+  const others = data.items.filter(
+    (i) => i.projectId === item.projectId && i.status === item.status && i.id !== item.id && !i.archivedAt,
+  );
+  return others.length === 0 ? 0 : Math.max(...others.map((i) => i.order)) + 1;
 }
 
 function validNoteBody(body: string): string {
@@ -157,11 +166,8 @@ export class LocalStorageRepository implements Repository {
     return item;
   }
 
-  async updateItem(id: string, patch: WorkItemPatch): Promise<WorkItem> {
-    const data = this.load();
-    const item = data.items.find((i) => i.id === id);
-    if (!item) throw new RepositoryError("Item not found");
-
+  /** Throw a readable error if `patch` cannot be applied to `item`. Changes nothing. */
+  private checkPatch(data: StoredData, item: WorkItem, patch: WorkItemPatch): void {
     if (patch.title !== undefined && !patch.title.trim()) {
       throw new RepositoryError("Title is required");
     }
@@ -178,7 +184,11 @@ export class LocalStorageRepository implements Repository {
     const nextType = patch.type ?? item.type;
     const nextParentId = "parentId" in patch ? patch.parentId : item.parentId;
     const parentProblem = parentError(data.items, { type: nextType, projectId: item.projectId }, nextParentId);
-    if (parentProblem) throw new RepositoryError(parentProblem);
+    if (parentProblem) {
+      throw new RepositoryError(
+        parentProblem.startsWith("A story") ? `${item.title}: ${parentProblem}` : parentProblem,
+      );
+    }
     if (item.type === "story" && nextType !== "story") {
       const count = childrenOf(data.items, item.id).length;
       if (count > 0) {
@@ -187,8 +197,10 @@ export class LocalStorageRepository implements Repository {
         );
       }
     }
+  }
 
-    const timestamp = now();
+  /** Apply an already-checked patch, keeping history, completion time and column order right. */
+  private applyPatch(data: StoredData, item: WorkItem, patch: WorkItemPatch, timestamp: string): void {
     const previousStatus = item.status;
     Object.assign(item, patch, {
       title: patch.title !== undefined ? patch.title.trim() : item.title,
@@ -204,31 +216,79 @@ export class LocalStorageRepository implements Repository {
         at: timestamp,
       });
       item.completedAt = item.status === "done" ? timestamp : undefined;
-      if (patch.order === undefined) {
-        // Land at the bottom of the new column.
-        const others = data.items.filter(
-          (i) => i.projectId === item.projectId && i.status === item.status && i.id !== item.id,
-        );
-        item.order = others.length === 0 ? 0 : Math.max(...others.map((i) => i.order)) + 1;
-      }
+      if (patch.order === undefined) item.order = bottomOrder(data, item);
     }
+  }
 
+  async updateItem(id: string, patch: WorkItemPatch): Promise<WorkItem> {
+    const data = this.load();
+    const item = data.items.find((i) => i.id === id);
+    if (!item) throw new RepositoryError("Item not found");
+    this.checkPatch(data, item, patch);
+    this.applyPatch(data, item, patch, now());
     this.save(data);
     return item;
   }
 
-  async deleteItem(id: string): Promise<void> {
+  async updateItems(ids: string[], patch: BulkPatch): Promise<WorkItem[]> {
     const data = this.load();
-    // Tasks of a deleted story are kept, just no longer linked.
+    const items = ids.map((id) => {
+      const item = data.items.find((i) => i.id === id);
+      if (!item) throw new RepositoryError("One of the selected items no longer exists");
+      return item;
+    });
+    // Check everything first so a failure leaves all items untouched.
+    for (const item of items) this.checkPatch(data, item, patch);
     const timestamp = now();
-    for (const child of childrenOf(data.items, id)) {
-      child.parentId = undefined;
-      child.updatedAt = timestamp;
-    }
-    data.items = data.items.filter((i) => i.id !== id);
-    data.statusChanges = data.statusChanges.filter((c) => c.itemId !== id);
-    data.notes = data.notes.filter((n) => n.itemId !== id);
+    for (const item of items) this.applyPatch(data, item, patch, timestamp);
     this.save(data);
+    return items;
+  }
+
+  async deleteItem(id: string): Promise<void> {
+    await this.deleteItems([id]);
+  }
+
+  async deleteItems(ids: string[]): Promise<void> {
+    const data = this.load();
+    const doomed = new Set(ids);
+    // Tasks of a deleted story are kept (unless they are being deleted too), just no longer linked.
+    const timestamp = now();
+    for (const item of data.items) {
+      if (item.parentId && doomed.has(item.parentId) && !doomed.has(item.id)) {
+        item.parentId = undefined;
+        item.updatedAt = timestamp;
+      }
+    }
+    data.items = data.items.filter((i) => !doomed.has(i.id));
+    data.statusChanges = data.statusChanges.filter((c) => !doomed.has(c.itemId));
+    data.notes = data.notes.filter((n) => !doomed.has(n.itemId));
+    this.save(data);
+  }
+
+  async setArchived(ids: string[], archived: boolean): Promise<WorkItem[]> {
+    const data = this.load();
+    const items = ids.map((id) => {
+      const item = data.items.find((i) => i.id === id);
+      if (!item) throw new RepositoryError("One of the selected items no longer exists");
+      return item;
+    });
+    const timestamp = now();
+    const changed: WorkItem[] = [];
+    for (const item of items) {
+      if (archived && !item.archivedAt) {
+        item.archivedAt = timestamp;
+        item.updatedAt = timestamp;
+        changed.push(item);
+      } else if (!archived && item.archivedAt) {
+        item.archivedAt = undefined;
+        item.updatedAt = timestamp;
+        item.order = bottomOrder(data, item); // back on the board, at the bottom of its column
+        changed.push(item);
+      }
+    }
+    if (changed.length > 0) this.save(data);
+    return changed;
   }
 
   async moveItem(id: string, toStatus: Status, toIndex: number): Promise<WorkItem[]> {

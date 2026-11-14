@@ -325,7 +325,7 @@ describe("stories and tasks", () => {
 });
 
 describe("saved filters", () => {
-  const bugs = { query: "  crash ", status: "all", priority: "high", type: "bug", label: "all", parent: "all" } as const;
+  const bugs = { query: "  crash ", status: "all", priority: "high", type: "bug", label: "all", parent: "all", archived: "hide" } as const;
 
   async function setup() {
     const p = await repo.createProject({ key: "WM", name: "Work Manager" });
@@ -387,6 +387,168 @@ describe("saved filters", () => {
   });
 });
 
+describe("bulk updates", () => {
+  async function setup() {
+    const p = await repo.createProject({ key: "WM", name: "Work Manager" });
+    const a = await repo.createItem(p.id, { title: "A" });
+    const b = await repo.createItem(p.id, { title: "B" });
+    const c = await repo.createItem(p.id, { title: "C" });
+    const story = await repo.createItem(p.id, { title: "Story", type: "story" });
+    return { p, a, b, c, story };
+  }
+
+  it("changes status for several items, with history, completion and column order", async () => {
+    const { p, a, b, c } = await setup();
+    const changed = await repo.updateItems([a.id, b.id], { status: "done" });
+    expect(changed.map((i) => i.status)).toEqual(["done", "done"]);
+    const items = await repo.listItems(p.id);
+    const byTitle = Object.fromEntries(items.map((i) => [i.title, i]));
+    expect(byTitle.A.completedAt).toBeDefined();
+    expect(byTitle.B.completedAt).toBeDefined();
+    expect(byTitle.C.status).toBe("todo");
+    // Both land in the Done column with distinct, increasing positions.
+    expect(byTitle.B.order).toBe(byTitle.A.order + 1);
+    expect((await repo.listStatusChanges(a.id)).at(-1)).toMatchObject({ from: "todo", to: "done" });
+    expect((await repo.listStatusChanges(b.id)).at(-1)).toMatchObject({ from: "todo", to: "done" });
+    expect(c.id).toBeDefined();
+  });
+
+  it("changes priority, and moves several items into a story", async () => {
+    const { p, a, b, story } = await setup();
+    await repo.updateItems([a.id, b.id], { priority: "critical" });
+    await repo.updateItems([a.id, b.id], { parentId: story.id });
+    const items = await repo.listItems(p.id);
+    expect(items.filter((i) => i.parentId === story.id).map((i) => i.title)).toEqual(["A", "B"]);
+    expect(items.filter((i) => i.priority === "critical")).toHaveLength(2);
+    await repo.updateItems([a.id], { parentId: undefined });
+    expect((await repo.listItems(p.id)).find((i) => i.id === a.id)?.parentId).toBeUndefined();
+  });
+
+  it("is all-or-nothing: one invalid item leaves every item unchanged", async () => {
+    const { p, a, b, story } = await setup();
+    // A story cannot be moved into a story, so including it must reject the whole batch.
+    await expect(repo.updateItems([a.id, b.id, story.id], { parentId: story.id })).rejects.toThrow(/story can't belong/);
+    const items = await repo.listItems(p.id);
+    expect(items.every((i) => !i.parentId)).toBe(true);
+    expect(items.every((i) => i.status === "todo")).toBe(true);
+  });
+
+  it("rejects missing items and invalid values without changing anything", async () => {
+    const { a } = await setup();
+    await expect(repo.updateItems([a.id, "missing"], { status: "done" })).rejects.toThrow(/no longer exists/);
+    expect((await repo.listItems((await repo.listProjects())[0].id)).find((i) => i.id === a.id)?.status).toBe("todo");
+    await expect(repo.updateItems([a.id], { status: "bogus" as never })).rejects.toThrow(/Invalid status/);
+    await expect(repo.updateItems([a.id], { priority: "bogus" as never })).rejects.toThrow(/Invalid priority/);
+    await expect(repo.updateItems([a.id], { parentId: "ghost" })).rejects.toThrow(/no longer exists/);
+  });
+});
+
+describe("bulk delete", () => {
+  async function setup() {
+    const p = await repo.createProject({ key: "WM", name: "Work Manager" });
+    const story = await repo.createItem(p.id, { title: "Story", type: "story" });
+    const task = await repo.createItem(p.id, { title: "Task", parentId: story.id });
+    const other = await repo.createItem(p.id, { title: "Other" });
+    return { p, story, task, other };
+  }
+
+  it("deletes several items together with their notes and history", async () => {
+    const { p, task, other } = await setup();
+    await repo.addNote(task.id, "note");
+    await repo.deleteItems([task.id, other.id]);
+    expect((await repo.listItems(p.id)).map((i) => i.title)).toEqual(["Story"]);
+    const data = await repo.exportData();
+    expect(data.notes).toEqual([]);
+    expect(data.statusChanges.every((c) => c.itemId === (data.items[0].id))).toBe(true);
+  });
+
+  it("unlinks tasks of a deleted story, unless the tasks are deleted too", async () => {
+    const { p, story, task } = await setup();
+    await repo.deleteItems([story.id]);
+    expect((await repo.listItems(p.id)).find((i) => i.id === task.id)?.parentId).toBeUndefined();
+  });
+
+  it("deleting a story together with its tasks removes them all cleanly", async () => {
+    const { p, story, task } = await setup();
+    await repo.deleteItems([story.id, task.id]);
+    expect((await repo.listItems(p.id)).map((i) => i.title)).toEqual(["Other"]);
+  });
+
+  it("ignores ids that no longer exist", async () => {
+    const { p } = await setup();
+    await expect(repo.deleteItems(["missing"])).resolves.toBeUndefined();
+    expect(await repo.listItems(p.id)).toHaveLength(3);
+  });
+});
+
+describe("archiving", () => {
+  async function setup() {
+    const p = await repo.createProject({ key: "WM", name: "Work Manager" });
+    const a = await repo.createItem(p.id, { title: "A" });
+    const b = await repo.createItem(p.id, { title: "B" });
+    const c = await repo.createItem(p.id, { title: "C" });
+    return { p, a, b, c };
+  }
+
+  it("archives items without changing their status, and only reports real changes", async () => {
+    const { a, b } = await setup();
+    const first = await repo.setArchived([a.id, b.id], true);
+    expect(first.map((i) => i.title)).toEqual(["A", "B"]);
+    expect(first.every((i) => i.archivedAt && i.status === "todo")).toBe(true);
+    // Archiving again changes nothing.
+    expect(await repo.setArchived([a.id], true)).toEqual([]);
+  });
+
+  it("unarchives to the bottom of the column among visible items", async () => {
+    const { p, a, b, c } = await setup();
+    await repo.setArchived([a.id], true);
+    await repo.setArchived([a.id], false);
+    const items = (await repo.listItems(p.id)).sort((x, y) => x.order - y.order);
+    expect(items.map((i) => i.title)).toEqual(["B", "C", "A"]);
+    expect(items.every((i) => !i.archivedAt)).toBe(true);
+    expect(await repo.setArchived([b.id, c.id], false)).toEqual([]); // not archived: nothing to do
+  });
+
+  it("keeps archived items out of board positioning when others move", async () => {
+    const { p, a, b, c } = await setup();
+    await repo.setArchived([b.id], true);
+    // Visible todo is A, C. Move C to the top.
+    await repo.moveItem(c.id, "todo", 0);
+    const visible = (await repo.listItems(p.id)).filter((i) => !i.archivedAt).sort((x, y) => x.order - y.order);
+    expect(visible.map((i) => i.title)).toEqual(["C", "A"]);
+    expect((await repo.listItems(p.id)).find((i) => i.id === b.id)?.archivedAt).toBeDefined();
+    expect(a.id).toBeDefined();
+  });
+
+  it("places an item changed through updateItem below visible items only", async () => {
+    const { p, a, b } = await setup();
+    await repo.updateItem(a.id, { status: "done" });
+    await repo.setArchived([a.id], true);
+    const moved = await repo.updateItem(b.id, { status: "done" });
+    expect(moved.order).toBe(0); // the archived item in Done does not count
+    expect((await repo.listItems(p.id)).find((i) => i.id === a.id)?.archivedAt).toBeDefined();
+  });
+
+  it("rejects unknown items", async () => {
+    await setup();
+    await expect(repo.setArchived(["missing"], true)).rejects.toThrow(/no longer exists/);
+  });
+
+  it("keeps archived state through export and import", async () => {
+    const { p, a } = await setup();
+    await repo.setArchived([a.id], true);
+    const other = new LocalStorageRepository(new MemoryStorage());
+    await other.importData(JSON.parse(JSON.stringify(await repo.exportData())));
+    expect((await other.listItems(p.id)).find((i) => i.id === a.id)?.archivedAt).toBeDefined();
+  });
+
+  it("round-trips the archive mode of a saved filter", async () => {
+    const { p } = await setup();
+    await repo.saveFilter(p.id, "Archive", { query: "", status: "all", priority: "all", type: "all", label: "all", parent: "all", archived: "only" });
+    expect((await repo.listSavedFilters(p.id))[0].filters.archived).toBe("only");
+  });
+});
+
 describe("export / import", () => {
   it("round-trips data", async () => {
     const p = await repo.createProject({ key: "WM", name: "Work Manager" });
@@ -419,7 +581,7 @@ describe("export / import", () => {
     expect((await repo.listProjects()).map((p) => p.name)).toEqual(["Old"]);
     await repo.createProject({ key: "NW", name: "New" });
     const saved = await repo.exportData();
-    expect(saved.version).toBe(4);
+    expect(saved.version).toBe(5);
     expect(saved.savedFilters).toEqual([]);
     expect(saved.notes).toEqual([]);
   });

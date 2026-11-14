@@ -135,4 +135,22 @@ describe("StoryTasks", () => {
       expect(screen.queryByLabelText("Add an existing item")).not.toBeInTheDocument();
     });
   });
+
+  describe("archived tasks", () => {
+    const archived = { archivedAt: "2026-11-01T00:00:00.000Z" };
+
+    it("are shown in the list with an Archived tag and still counted in progress", () => {
+      setup({
+        items: [story, item(2, "task", { parentId: "i1", status: "done", title: "Shipped", ...archived }), item(3, "task", { parentId: "i1", title: "Open task" })],
+      });
+      expect(screen.getByText("Archived")).toBeInTheDocument();
+      expect(screen.getByRole("progressbar", { name: "Story progress" })).toHaveAttribute("aria-valuenow", "50");
+    });
+
+    it("are not offered as existing items to add", () => {
+      setup({ items: [story, item(4, "task", { title: "Archived loose", ...archived }), item(5, "task", { title: "Fresh loose" })] });
+      const options = within(screen.getByLabelText("Add an existing item")).getAllByRole("option").map((o) => o.textContent);
+      expect(options).toEqual(["Choose a task or bug…", "WM-5 · Fresh loose"]);
+    });
+  });
 });

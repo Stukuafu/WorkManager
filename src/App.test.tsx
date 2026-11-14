@@ -370,4 +370,175 @@ describe("App projects flow", () => {
     await user.click(screen.getByRole("button", { name: "Yes, delete" }));
     expect(screen.queryByLabelText("Saved filters")).not.toBeInTheDocument();
   });
+
+  it("archives an item: it leaves the list and board, shows under the archive filter, and can come back", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await newProject(user);
+    await newItem(user, "Keep me");
+    await newItem(user, "Archive me");
+
+    const rowTitles = () =>
+      within(screen.getByRole("table")).getAllByRole("row").slice(1).map((r) => within(r).getAllByRole("button")[0].textContent);
+    expect(rowTitles()).toEqual(["Archive me", "Keep me"]);
+
+    // Archive from the detail panel.
+    await user.click(screen.getByRole("button", { name: "Archive me" }));
+    await user.click(await screen.findByRole("button", { name: "Archive item" }));
+    expect(await screen.findByText(/It is hidden from the board and list/)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Close panel" }));
+
+    // Hidden from the list by default, counted in the banner, and absent from the board.
+    expect(rowTitles()).toEqual(["Keep me"]);
+    expect(screen.getByText("Showing 1 of 1 items")).toBeInTheDocument();
+    expect(screen.getByText("Archived", { selector: "dt" }).nextSibling).toHaveTextContent("1");
+    await user.click(screen.getByRole("tab", { name: "board" }));
+    expect(screen.queryByText("Archive me")).not.toBeInTheDocument();
+    expect(screen.getByText("Keep me")).toBeInTheDocument();
+    await user.click(screen.getByRole("tab", { name: "list" }));
+
+    // The filter can include them or show only them.
+    await user.selectOptions(screen.getByLabelText("Archived items"), "include");
+    expect(rowTitles()).toEqual(["Archive me", "Keep me"]);
+    expect(within(screen.getByRole("table")).getByText("Archived", { selector: "span" })).toBeInTheDocument();
+    await user.selectOptions(screen.getByLabelText("Archived items"), "only");
+    expect(rowTitles()).toEqual(["Archive me"]);
+    expect(screen.getByText("Showing 1 of 1 items")).toBeInTheDocument();
+
+    // Unarchive via the panel; it goes back to the board.
+    await user.click(screen.getByRole("button", { name: "Archive me" }));
+    await user.click(await screen.findByRole("button", { name: "Unarchive" }));
+    await user.click(screen.getByRole("button", { name: "Close panel" }));
+    expect(screen.getByText("No items match your filters.")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Clear filters" }));
+    expect(rowTitles()).toEqual(["Archive me", "Keep me"]);
+    await user.click(screen.getByRole("tab", { name: "board" }));
+    expect(screen.getByText("Archive me")).toBeInTheDocument();
+  });
+
+  it("saves the archive filter in a saved filter", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await newProject(user);
+    await newItem(user, "Old thing");
+    await user.click(screen.getByRole("button", { name: "Old thing" }));
+    await user.click(await screen.findByRole("button", { name: "Archive item" }));
+    await user.click(screen.getByRole("button", { name: "Close panel" }));
+
+    await user.selectOptions(screen.getByLabelText("Archived items"), "only");
+    await user.click(screen.getByRole("button", { name: "Save filters" }));
+    await user.type(screen.getByLabelText("Name for these filters"), "Archive");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    await user.click(screen.getByRole("button", { name: "Clear filters" }));
+    expect(screen.getByText("No items match your filters.")).toBeInTheDocument();
+    await user.selectOptions(screen.getByLabelText("Saved filters"), "Archive");
+    expect(screen.getByLabelText("Archived items")).toHaveValue("only");
+    expect(screen.getByRole("button", { name: "Old thing" })).toBeInTheDocument();
+  });
+
+  it("applies bulk actions to selected rows", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await newProject(user);
+    await newItem(user, "Checkout", { type: "story" });
+    await newItem(user, "Alpha", { priority: "low" });
+    await newItem(user, "Beta", { priority: "low" });
+    await newItem(user, "Gamma", { priority: "low" });
+
+    const table = () => screen.getByRole("table");
+    const rowFor = (title: string) => within(table()).getByRole("button", { name: title }).closest("tr")!;
+    const checkboxFor = (title: string) => within(rowFor(title)).getByRole("checkbox");
+
+    // No toolbar until something is selected.
+    expect(screen.queryByRole("region", { name: "Bulk actions" })).not.toBeInTheDocument();
+    await user.click(checkboxFor("Alpha"));
+    await user.click(checkboxFor("Beta"));
+    const bar = screen.getByRole("region", { name: "Bulk actions" });
+    expect(bar).toHaveTextContent("2 items selected");
+
+    // Status and priority apply to just the selected rows; the selection stays for the next change.
+    await user.selectOptions(within(bar).getByLabelText("Set status for selected"), "In Review");
+    expect(await screen.findByText("2 items moved to In Review.")).toBeInTheDocument();
+    expect(within(rowFor("Alpha")).getByLabelText("Status of WM-2")).toHaveValue("in_review");
+    expect(within(rowFor("Beta")).getByLabelText("Status of WM-3")).toHaveValue("in_review");
+    expect(within(rowFor("Gamma")).getByLabelText("Status of WM-4")).toHaveValue("todo");
+    await user.selectOptions(within(bar).getByLabelText("Set priority for selected"), "Critical");
+    expect(await screen.findByText("2 items set to Critical priority.")).toBeInTheDocument();
+    expect(within(rowFor("Alpha")).getByText("Critical")).toBeInTheDocument();
+    expect(within(rowFor("Gamma")).getByText("Low")).toBeInTheDocument();
+
+    // Move both into the story.
+    await user.selectOptions(within(bar).getByLabelText("Move selected to a story"), "WM-1 · Checkout");
+    expect(await screen.findByText("2 items moved into WM-1.")).toBeInTheDocument();
+    expect(within(rowFor("Alpha")).getByText("WM-1")).toBeInTheDocument();
+    expect(within(rowFor("Checkout")).getByRole("progressbar")).toHaveAttribute("aria-valuenow", "0");
+
+    // Archive them: the selection clears and they leave the list.
+    await user.click(within(bar).getByRole("button", { name: "Archive" }));
+    expect(await screen.findByText("Archived 2 items.")).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Bulk actions" })).not.toBeInTheDocument();
+    expect(within(table()).queryByRole("button", { name: "Alpha" })).not.toBeInTheDocument();
+    expect(within(table()).getByRole("button", { name: "Gamma" })).toBeInTheDocument();
+  });
+
+  it("selects all shown rows, and bulk deletes after confirming", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await newProject(user);
+    for (const title of ["One", "Two", "Three"]) await newItem(user, title);
+
+    const selectAll = screen.getByLabelText("Select all shown items") as HTMLInputElement;
+    await user.click(screen.getByLabelText("Select WM-1"));
+    expect(selectAll.indeterminate).toBe(true);
+    await user.click(selectAll);
+    expect(screen.getByRole("region", { name: "Bulk actions" })).toHaveTextContent("3 items selected");
+    expect(selectAll.checked).toBe(true);
+    await user.click(selectAll);
+    expect(screen.queryByRole("region", { name: "Bulk actions" })).not.toBeInTheDocument();
+
+    // Select all only covers what the filters show.
+    await user.type(screen.getByLabelText("Search items"), "T"); // Two, Three
+    await user.click(selectAll);
+    const bar = screen.getByRole("region", { name: "Bulk actions" });
+    expect(bar).toHaveTextContent("2 items selected");
+
+    await user.click(within(bar).getByRole("button", { name: "Delete" }));
+    expect(screen.getByText("Two")).toBeInTheDocument(); // nothing happens until confirmed
+    await user.click(within(bar).getByRole("button", { name: "Yes, delete" }));
+    expect(await screen.findByText("Deleted 2 items.")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Clear filters" }));
+    expect(within(screen.getByRole("table")).getAllByRole("row").slice(1)).toHaveLength(1);
+    expect(screen.getByRole("button", { name: "One" })).toBeInTheDocument();
+  });
+
+  it("explains a rejected bulk action and changes nothing", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await newProject(user);
+    await newItem(user, "Checkout", { type: "story" });
+    await newItem(user, "Other story", { type: "story" });
+    await newItem(user, "Task");
+
+    // Moving a task and a story into a story is not allowed: stories cannot nest.
+    await user.click(screen.getByLabelText("Select WM-3"));
+    await user.click(screen.getByLabelText("Select WM-2"));
+    await user.selectOptions(screen.getByLabelText("Move selected to a story"), "WM-1 · Checkout");
+    expect(await screen.findByRole("alert")).toHaveTextContent(/story can't belong to another story/);
+    expect(screen.queryAllByText("WM-1", { selector: "span" })).toHaveLength(0); // the task was not moved either
+    expect(screen.getByRole("region", { name: "Bulk actions" })).toHaveTextContent("2 items selected");
+  });
+
+  it("clears the selection when the filters change", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await newProject(user);
+    await newItem(user, "One");
+    await newItem(user, "Two");
+    await user.click(screen.getByLabelText("Select WM-1"));
+    expect(screen.getByRole("region", { name: "Bulk actions" })).toBeInTheDocument();
+    await user.selectOptions(screen.getByLabelText("Filter by priority"), "high");
+    expect(screen.queryByRole("region", { name: "Bulk actions" })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Clear filters" }));
+    expect((screen.getByLabelText("Select WM-1") as HTMLInputElement).checked).toBe(false);
+  });
 });

@@ -10,6 +10,7 @@ export const DEFAULT_FILTERS: ItemFilters = {
   type: "all",
   label: "all",
   parent: "all",
+  archived: "hide",
 };
 
 export function hasActiveFilters(filters: ItemFilters): boolean {
@@ -19,8 +20,15 @@ export function hasActiveFilters(filters: ItemFilters): boolean {
     filters.priority !== "all" ||
     filters.type !== "all" ||
     filters.label !== "all" ||
-    filters.parent !== "all"
+    filters.parent !== "all" ||
+    filters.archived !== "hide"
   );
+}
+
+/** Items that pass the archive setting alone: the base the other filters narrow down. */
+export function byArchiveMode(items: WorkItem[], mode: ItemFilters["archived"]): WorkItem[] {
+  if (mode === "include") return items;
+  return items.filter((i) => (mode === "only" ? !!i.archivedAt : !i.archivedAt));
 }
 
 function fieldsMatch(item: WorkItem, query: string, projectKey: string): boolean {
@@ -56,7 +64,7 @@ export function filterItems(
   noteText: Record<string, string> = {},
 ): WorkItem[] {
   const query = filters.query.trim().toLowerCase();
-  return items.filter((item) => {
+  return byArchiveMode(items, filters.archived).filter((item) => {
     if (filters.status !== "all" && item.status !== filters.status) return false;
     if (filters.priority !== "all" && item.priority !== filters.priority) return false;
     if (filters.type !== "all" && item.type !== filters.type) return false;

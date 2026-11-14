@@ -17,6 +17,8 @@ npm run build   # type-check and build
 - Fixed workflow: To Do, In Progress, In Review, Done
 - List view with search (including note text), filters and sortable columns (click a header; click again to reverse), and a drag-and-drop board (mouse, touch and keyboard)
 - Detail panel with status history, dates and time to complete
+- Archive: archive any item to hide it from the board and list (an "Archived items" filter shows, includes or isolates them); unarchive any time
+- Bulk actions: tick rows (or select all shown) to set status or priority, move to a story, archive or delete several items at once
 - Saved filters: save the current filters under a name (per project) and reapply them with one click
 - Stories with tasks: add new tasks to a story, or pick an existing task or bug to link to it, with a progress bar, parent chips, and a filter by story
 - Notes on each item (add, edit, delete), with note counts on the list and board

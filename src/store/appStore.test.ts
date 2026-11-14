@@ -237,7 +237,7 @@ describe("app store notes", () => {
 });
 
 describe("app store saved filters", () => {
-  const filters = { query: "crash", status: "all", priority: "high", type: "bug", label: "all", parent: "all" } as const;
+  const filters = { query: "crash", status: "all", priority: "high", type: "bug", label: "all", parent: "all", archived: "hide" } as const;
 
   async function setup() {
     const store = createAppStore(repo);
@@ -277,5 +277,57 @@ describe("app store saved filters", () => {
     const store = await setup();
     await expect(store.getState().saveFilter("   ", filters)).rejects.toThrow();
     expect(store.getState().savedFilters).toEqual([]);
+  });
+});
+
+describe("app store bulk actions and archive", () => {
+  async function setup() {
+    const store = createAppStore(repo);
+    await store.getState().init();
+    await store.getState().createProject({ key: "WM", name: "Work Manager" });
+    const a = await store.getState().createItem({ title: "A" });
+    const b = await store.getState().createItem({ title: "B" });
+    const c = await store.getState().createItem({ title: "C" });
+    return { store, a, b, c };
+  }
+
+  it("updates several items at once and refreshes the list", async () => {
+    const { store, a, b, c } = await setup();
+    await store.getState().updateItems([a.id, b.id], { status: "in_review", priority: "high" });
+    const byId = Object.fromEntries(store.getState().items.map((i) => [i.id, i]));
+    expect(byId[a.id]).toMatchObject({ status: "in_review", priority: "high" });
+    expect(byId[b.id]).toMatchObject({ status: "in_review", priority: "high" });
+    expect(byId[c.id].status).toBe("todo");
+  });
+
+  it("leaves everything unchanged when a bulk update is rejected", async () => {
+    const { store, a } = await setup();
+    await expect(store.getState().updateItems([a.id], { parentId: "ghost" })).rejects.toThrow();
+    expect(store.getState().items.find((i) => i.id === a.id)?.parentId).toBeUndefined();
+  });
+
+  it("deletes several items, and their notes", async () => {
+    const { store, a, b, c } = await setup();
+    await store.getState().addNote(a.id, "bye");
+    await store.getState().deleteItems([a.id, b.id]);
+    expect(store.getState().items.map((i) => i.id)).toEqual([c.id]);
+    expect(store.getState().notes).toEqual([]);
+  });
+
+  it("archives and unarchives, keeping archived items in state for the list to filter", async () => {
+    const { store, a, b } = await setup();
+    await store.getState().setArchived([a.id, b.id], true);
+    expect(store.getState().items.filter((i) => i.archivedAt)).toHaveLength(2);
+    await store.getState().setArchived([a.id], false);
+    expect(store.getState().items.find((i) => i.id === a.id)?.archivedAt).toBeUndefined();
+    expect(store.getState().items.find((i) => i.id === b.id)?.archivedAt).toBeDefined();
+  });
+
+  it("requires an active project", async () => {
+    const store = createAppStore(repo);
+    await store.getState().init();
+    await expect(store.getState().setArchived(["x"], true)).rejects.toThrow(/No active project/);
+    await expect(store.getState().updateItems(["x"], { status: "done" })).rejects.toThrow(/No active project/);
+    await expect(store.getState().deleteItems(["x"])).rejects.toThrow(/No active project/);
   });
 });

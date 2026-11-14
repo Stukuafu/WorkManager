@@ -32,6 +32,7 @@ describe("equalFilters", () => {
       { type: "bug" as const },
       { label: "ui" },
       { parent: "s" },
+      { archived: "include" as const },
     ]) {
       expect(equalFilters(DEFAULT_FILTERS, { ...DEFAULT_FILTERS, ...change })).toBe(false);
     }

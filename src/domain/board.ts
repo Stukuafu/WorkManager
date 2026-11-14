@@ -10,12 +10,13 @@ export interface MoveChange {
 }
 
 function sortedColumn(items: WorkItem[], status: Status, excludeId?: string): WorkItem[] {
+  // Archived items are not on the board, so they take no part in column positions.
   return items
-    .filter((i) => i.status === status && i.id !== excludeId)
+    .filter((i) => i.status === status && i.id !== excludeId && !i.archivedAt)
     .sort((a, b) => a.order - b.order || a.number - b.number);
 }
 
-/** Item ids per status column, in display order. */
+/** Item ids per status column, in display order. Archived items are left out. */
 export function buildColumns(items: WorkItem[]): Columns {
   const columns = {} as Columns;
   for (const status of STATUSES) columns[status] = sortedColumn(items, status).map((i) => i.id);

@@ -41,7 +41,17 @@ export function storyProgress(items: WorkItem[], storyId: string): StoryProgress
   };
 }
 
-/** Stories that can be chosen as a parent, in key order. */
-export function storiesIn(items: WorkItem[], excludeId?: string): WorkItem[] {
-  return items.filter((i) => i.type === "story" && i.id !== excludeId).sort((a, b) => a.number - b.number);
+/**
+ * Stories that can be chosen as a parent, in key order. Archived stories are left out
+ * unless `keepId` is that story (so an item's current parent still shows in its dropdown).
+ */
+export function storiesIn(items: WorkItem[], excludeId?: string, keepId?: string): WorkItem[] {
+  return items
+    .filter((i) => i.type === "story" && i.id !== excludeId && (!i.archivedAt || i.id === keepId))
+    .sort((a, b) => a.number - b.number);
+}
+
+/** Every story, archived or not, in key order. */
+export function allStories(items: WorkItem[]): WorkItem[] {
+  return items.filter((i) => i.type === "story").sort((a, b) => a.number - b.number);
 }

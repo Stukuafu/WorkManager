@@ -30,6 +30,9 @@ export default function App() {
   const updateItem = useAppStore((s) => s.updateItem);
   const deleteItem = useAppStore((s) => s.deleteItem);
   const moveItem = useAppStore((s) => s.moveItem);
+  const updateItems = useAppStore((s) => s.updateItems);
+  const deleteItems = useAppStore((s) => s.deleteItems);
+  const setArchived = useAppStore((s) => s.setArchived);
   const loadHistory = useAppStore((s) => s.loadHistory);
   const loadNotes = useAppStore((s) => s.loadNotes);
   const addNote = useAppStore((s) => s.addNote);
@@ -171,6 +174,9 @@ export default function App() {
                   await saveFilter(name, filters);
                 }}
                 onDeleteSavedFilter={deleteSavedFilter}
+                onBulkUpdate={updateItems}
+                onBulkArchive={setArchived}
+                onBulkDelete={deleteItems}
                 onOpen={(item) => setOpenItemId(item.id)}
                 onCreate={() => setCreatingItem(true)}
                 onStatusChange={(item, status) => {
@@ -226,6 +232,7 @@ export default function App() {
           onLinkTask={async (storyId, itemId) => {
             await updateItem(itemId, { parentId: storyId });
           }}
+          onArchive={(itemId, archived) => setArchived([itemId], archived)}
           onStatusChange={changeStatus}
           loadHistory={loadHistory}
           loadNotes={loadNotes}

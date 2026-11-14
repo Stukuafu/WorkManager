@@ -36,6 +36,7 @@ function renderPanel(overrides: Partial<Parameters<typeof ItemPanel>[0]> = {}) {
     onOpenItem: vi.fn(),
     onAddTask: vi.fn().mockResolvedValue(undefined),
     onLinkTask: vi.fn().mockResolvedValue(undefined),
+    onArchive: vi.fn().mockResolvedValue(undefined),
     onStatusChange: vi.fn().mockResolvedValue(undefined),
     loadHistory: vi.fn().mockResolvedValue(history),
     loadNotes: vi.fn().mockResolvedValue([]),
@@ -130,6 +131,43 @@ describe("ItemPanel", () => {
       renderPanel({ item: child, items: [story, other, child] });
       const options = within(screen.getByLabelText("Parent story")).getAllByRole("option").map((o) => o.textContent);
       expect(options).toEqual(["None", "WM-1 · Checkout", "WM-3 · Search"]);
+    });
+  });
+
+  describe("archiving", () => {
+    it("offers Archive for a normal item and calls back with the item", async () => {
+      const user = userEvent.setup();
+      const props = renderPanel();
+      expect(screen.queryByText(/It is hidden from the board/)).not.toBeInTheDocument();
+      await user.click(screen.getByRole("button", { name: "Archive item" }));
+      expect(props.onArchive).toHaveBeenCalledWith("i1", true);
+    });
+
+    it("shows an archived banner with Unarchive, and the archive date", async () => {
+      const user = userEvent.setup();
+      const props = renderPanel({ item: { ...item, archivedAt: "2026-11-20T10:00:00.000Z" } });
+      expect(screen.getByText(/It is hidden from the board and list/)).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Archive item" })).not.toBeInTheDocument();
+      expect(screen.getByText("Archived", { selector: "dt" })).toBeInTheDocument();
+      await user.click(screen.getByRole("button", { name: "Unarchive" }));
+      expect(props.onArchive).toHaveBeenCalledWith("i1", false);
+    });
+
+    it("shows an error if archiving fails", async () => {
+      const user = userEvent.setup();
+      renderPanel({ onArchive: vi.fn().mockRejectedValue(new Error("Item not found")) });
+      await user.click(screen.getByRole("button", { name: "Archive item" }));
+      expect(await screen.findByRole("alert")).toHaveTextContent("Item not found");
+      expect(screen.getByRole("button", { name: "Archive item" })).toBeEnabled();
+    });
+
+    it("still lists an archived parent so the parent field displays correctly", () => {
+      const story: WorkItem = { ...item, id: "s1", number: 1, type: "story", title: "Old story", archivedAt: "2026-11-01T00:00:00.000Z" };
+      const other: WorkItem = { ...item, id: "s2", number: 3, type: "story", title: "Archived other", archivedAt: "2026-11-01T00:00:00.000Z" };
+      const child: WorkItem = { ...item, id: "t1", number: 2, type: "task", parentId: "s1", completedAt: undefined };
+      renderPanel({ item: child, items: [story, other, child] });
+      const options = within(screen.getByLabelText("Parent story")).getAllByRole("option").map((o) => o.textContent);
+      expect(options).toEqual(["None", "WM-1 · Old story (archived)"]);
     });
   });
 });

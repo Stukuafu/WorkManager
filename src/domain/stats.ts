@@ -5,13 +5,22 @@ export interface ProjectStats {
   open: number;
   done: number;
   overdue: number;
+  /** Items that are archived. They are not counted in the other numbers. */
+  archived: number;
 }
 
 /** Counts for the project banner. `today` is a YYYY-MM-DD string. */
 export function projectStats(items: WorkItem[], today: string): ProjectStats {
-  const done = items.filter((i) => i.status === "done").length;
-  const overdue = items.filter((i) => i.status !== "done" && i.dueDate && i.dueDate < today).length;
-  return { total: items.length, open: items.length - done, done, overdue };
+  const current = items.filter((i) => !i.archivedAt);
+  const done = current.filter((i) => i.status === "done").length;
+  const overdue = current.filter((i) => i.status !== "done" && i.dueDate && i.dueDate < today).length;
+  return {
+    total: current.length,
+    open: current.length - done,
+    done,
+    overdue,
+    archived: items.length - current.length,
+  };
 }
 
 /** Today's date in local time as YYYY-MM-DD. */

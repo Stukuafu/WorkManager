@@ -142,6 +142,9 @@ Each milestone ends with something you can click through.
 
 - **Dark mode:** light, dark, or follow the system. Surfaces, text and lines are themed CSS variables; brand red, the secondary palette and the pastel tints stay constant, with fixed dark text on them. Text in brand red uses a lighter red on dark so it stays readable. All screens pass an automated contrast audit in both themes.
 
+- **Archive:** `WorkItem.archivedAt`. Any item can be archived; its status is unchanged. Archived items are hidden from the board and, by default, the list; the list's *Archived items* filter (hide / include / only) is part of saved filters. They still count towards their story's progress but not towards the Open / Done / Overdue numbers, and a separate Archived count shows when there are any. Archived stories are not offered as parents. Unarchiving returns an item to the bottom of its board column. Archived items are ignored when computing board positions.
+- **Bulk actions:** tick rows in the list to set status or priority, move to a story, archive / unarchive, or delete. Each action is all-or-nothing (validated for every item before any change). Selection only covers rows currently shown and clears when the filters change. Schema is now **version 5**; versions 1-4 upgrade automatically.
+
 ## 8. Out of scope for the PoC (possible later)
 
 Sprints and backlog, time tracking and estimates, dashboards and burndown, custom workflows, multi-user accounts and assignees, notifications, attachments, and a backend (Supabase or a Node API).

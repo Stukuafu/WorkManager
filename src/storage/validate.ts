@@ -72,7 +72,7 @@ export function parseStoredData(raw: unknown): StoredData {
     fail(`Unsupported data version: ${String(raw.version)}`);
   }
   // Older versions only lack newer optional data: v1 had no notes, v1-v2 had no parent links,
-  // v1-v3 had no saved filters.
+  // v1-v3 had no saved filters, v1-v4 had no archived items.
   // Migrating is just defaulting those, so nothing else needs converting.
 
   const projects: Project[] = list(raw, "projects").map((entry, i) => {
@@ -122,6 +122,7 @@ export function parseStoredData(raw: unknown): StoredData {
       labels: labels as string[],
       dueDate: optStr(entry, "dueDate", where),
       parentId: optStr(entry, "parentId", where),
+      archivedAt: optStr(entry, "archivedAt", where),
       order: entry.order,
       createdAt: str(entry, "createdAt", where),
       updatedAt: str(entry, "updatedAt", where),
@@ -193,6 +194,8 @@ export function parseStoredData(raw: unknown): StoredData {
       type: oneOf(f, "type", ["all", ...ITEM_TYPES], `${where} filters`),
       label: str(f, "label", `${where} filters`),
       parent: str(f, "parent", `${where} filters`),
+      // Filters saved before archiving existed have no mode: they hid nothing special, i.e. "hide".
+      archived: f.archived === undefined ? "hide" : oneOf(f, "archived", ["hide", "include", "only"], `${where} filters`),
     };
     return {
       id: str(entry, "id", where),

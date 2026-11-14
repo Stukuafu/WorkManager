@@ -81,3 +81,22 @@ describe("planMove", () => {
     expect(() => planMove(items, "nope", "todo", 0)).toThrow(/not found/);
   });
 });
+
+describe("archived items and the board", () => {
+  const archived = { ...item(6, "todo", 1), archivedAt: "2026-11-01T00:00:00.000Z" };
+  // todo: i1(0) i6(archived, 1) i2(1)->renumbered   so visible todo is i1, i2, i3
+  const withArchived = [item(1, "todo", 0), archived, item(2, "todo", 2), item(3, "todo", 3)];
+
+  it("leaves archived items out of the columns", () => {
+    expect(buildColumns(withArchived).todo).toEqual(["i1", "i2", "i3"]);
+  });
+
+  it("positions moves among visible items only", () => {
+    // Dropping i3 at visible index 1 puts it between i1 and i2.
+    const changes = planMove(withArchived, "i3", "todo", 1);
+    expect(changes.find((c) => c.id === "i3")?.order).toBe(1);
+    // i2 already sits at position 2, so nothing needs to change for it.
+    expect(changes.some((c) => c.id === "i2")).toBe(false);
+    expect(changes.some((c) => c.id === "i6")).toBe(false); // the archived item is never touched
+  });
+});

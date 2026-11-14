@@ -17,6 +17,7 @@ interface ItemPanelProps {
   onOpenItem(id: string): void;
   onAddTask(storyId: string, title: string): Promise<void>;
   onLinkTask(storyId: string, itemId: string): Promise<void>;
+  onArchive(itemId: string, archived: boolean): Promise<void>;
   onStatusChange(item: WorkItem, status: Status): Promise<void>;
   loadHistory(id: string): Promise<StatusChange[]>;
   loadNotes(itemId: string): Promise<Note[]>;
@@ -36,6 +37,7 @@ export function ItemPanel({
   onOpenItem,
   onAddTask,
   onLinkTask,
+  onArchive,
   onStatusChange,
   loadHistory,
   loadNotes,
@@ -49,6 +51,8 @@ export function ItemPanel({
   const id = useId();
   const key = formatItemKey(projectKey, item.number);
   const [history, setHistory] = useState<StatusChange[]>([]);
+  const [archiveError, setArchiveError] = useState<string | null>(null);
+  const [archiving, setArchiving] = useState(false);
 
   // Reload whenever the item changes, since saving can change its status.
   useEffect(() => {
@@ -62,15 +66,43 @@ export function ItemPanel({
   }, [loadHistory, item.id, item.updatedAt]);
 
   const parent = item.parentId ? items.find((i) => i.id === item.parentId) : undefined;
-  const parentOptions = storiesIn(items, item.id).map((s) => ({
+  const parentOptions = storiesIn(items, item.id, item.parentId).map((s) => ({
     id: s.id,
-    label: `${formatItemKey(projectKey, s.number)} · ${s.title}`,
+    label: `${formatItemKey(projectKey, s.number)} · ${s.title}${s.archivedAt ? " (archived)" : ""}`,
   }));
+
+  async function setArchived(archived: boolean) {
+    setArchiveError(null);
+    setArchiving(true);
+    try {
+      await onArchive(item.id, archived);
+    } catch (e) {
+      setArchiveError(e instanceof Error ? e.message : "Could not change the archive state.");
+    } finally {
+      setArchiving(false);
+    }
+  }
 
   const cycle = cycleTime(item.createdAt, item.completedAt);
 
   return (
     <Drawer title={`${key} · Edit item`} titleId={`${id}-title`} onClose={onClose}>
+      {item.archivedAt && (
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-md border border-line bg-surface p-3 text-sm">
+          <span className="text-ink">
+            <strong>Archived</strong> on {formatDateTime(item.archivedAt)}. It is hidden from the board and list.
+          </span>
+          <button
+            type="button"
+            disabled={archiving}
+            onClick={() => void setArchived(false)}
+            className="rounded-md bg-brand-red px-3 py-1.5 font-bold text-white hover:bg-brand-red-dark disabled:opacity-60"
+          >
+            Unarchive
+          </button>
+        </div>
+      )}
+
       {parent && (
         <p className="mb-4 text-sm">
           Part of{" "}
@@ -131,6 +163,12 @@ export function ItemPanel({
               <dd>{formatDateTime(item.completedAt)}</dd>
             </>
           )}
+          {item.archivedAt && (
+            <>
+              <dt className="font-bold">Archived</dt>
+              <dd>{formatDateTime(item.archivedAt)}</dd>
+            </>
+          )}
           {cycle && (
             <>
               <dt className="font-bold">Time to complete</dt>
@@ -138,6 +176,24 @@ export function ItemPanel({
             </>
           )}
         </dl>
+        {!item.archivedAt && (
+          <div className="mt-4">
+            <button
+              type="button"
+              disabled={archiving}
+              onClick={() => void setArchived(true)}
+              className="rounded-md border border-line px-3 py-1.5 text-sm font-bold text-ink hover:border-brand-gray disabled:opacity-60"
+            >
+              Archive item
+            </button>
+            <p className="mt-1 text-xs">Hides it from the board and list. You can bring it back any time.</p>
+          </div>
+        )}
+        {archiveError && (
+          <p role="alert" className="mt-2 text-sm font-bold text-emphasis">
+            {archiveError}
+          </p>
+        )}
       </section>
 
       <section aria-labelledby={`${id}-history`} className="mt-6">

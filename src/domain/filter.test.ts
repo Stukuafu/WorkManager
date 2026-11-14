@@ -4,6 +4,7 @@ import {
   DEFAULT_FILTERS,
   filterItems,
   hasActiveFilters,
+  byArchiveMode,
   matchesOnlyInNotes,
   parseLabels,
 } from "./filter";
@@ -62,6 +63,43 @@ describe("filterItems", () => {
 
   it("combines filters with AND", () => {
     expect(filterItems(items, { ...DEFAULT_FILTERS, label: "ui", status: "done" }, "WM").map((i) => i.number)).toEqual([3]);
+  });
+});
+
+describe("archive mode", () => {
+  const withArchived = [
+    item({ number: 1, title: "Active one" }),
+    item({ number: 2, title: "Archived one", archivedAt: "2026-11-01T00:00:00.000Z" }),
+    item({ number: 3, title: "Active two" }),
+  ];
+  const numbers = (mode: "hide" | "include" | "only") =>
+    filterItems(withArchived, { ...DEFAULT_FILTERS, archived: mode }, "WM").map((i) => i.number);
+
+  it("hides archived items by default", () => {
+    expect(filterItems(withArchived, DEFAULT_FILTERS, "WM").map((i) => i.number)).toEqual([1, 3]);
+    expect(numbers("hide")).toEqual([1, 3]);
+  });
+
+  it("can include them, or show only them", () => {
+    expect(numbers("include")).toEqual([1, 2, 3]);
+    expect(numbers("only")).toEqual([2]);
+  });
+
+  it("combines with search", () => {
+    const found = filterItems(withArchived, { ...DEFAULT_FILTERS, archived: "include", query: "archived" }, "WM");
+    expect(found.map((i) => i.number)).toEqual([2]);
+    expect(filterItems(withArchived, { ...DEFAULT_FILTERS, query: "archived" }, "WM")).toEqual([]);
+  });
+
+  it("exposes the archive-only base for counts", () => {
+    expect(byArchiveMode(withArchived, "hide")).toHaveLength(2);
+    expect(byArchiveMode(withArchived, "only")).toHaveLength(1);
+    expect(byArchiveMode(withArchived, "include")).toHaveLength(3);
+  });
+
+  it("counts a non-default mode as an active filter", () => {
+    expect(hasActiveFilters({ ...DEFAULT_FILTERS, archived: "include" })).toBe(true);
+    expect(hasActiveFilters({ ...DEFAULT_FILTERS, archived: "hide" })).toBe(false);
   });
 });
 

@@ -32,6 +32,12 @@ export function ProjectBanner({ project, stats }: { project: Project; stats: Pro
             <dt className="opacity-90">Overdue</dt>
             <dd className="text-2xl font-light">{stats.overdue}</dd>
           </div>
+          {stats.archived > 0 && (
+            <div>
+              <dt className="opacity-90">Archived</dt>
+              <dd className="text-2xl font-light">{stats.archived}</dd>
+            </div>
+          )}
         </dl>
       </div>
     </div>

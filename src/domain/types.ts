@@ -33,6 +33,8 @@ export interface WorkItem {
   updatedAt: string;
   /** Set when status becomes "done", cleared if the item is reopened. */
   completedAt?: string;
+  /** Set while the item is archived. Archived items are hidden from the board and, by default, the list. */
+  archivedAt?: string;
 }
 
 export interface StatusChange {
@@ -55,6 +57,9 @@ export interface Note {
 export const MAX_NOTE_LENGTH = 10_000;
 
 /** The list view's search and filter choices. "all" means no restriction. */
+/** How the list treats archived items. */
+export type ArchiveMode = "hide" | "include" | "only";
+
 export interface ItemFilters {
   query: string;
   status: Status | "all";
@@ -63,6 +68,7 @@ export interface ItemFilters {
   label: string | "all";
   /** Only tasks of this story (by story id). */
   parent: string | "all";
+  archived: ArchiveMode;
 }
 
 /** A named set of filters, saved per project. */
@@ -85,6 +91,9 @@ export type NewWorkItem = Pick<WorkItem, "title"> &
   Partial<
     Pick<WorkItem, "description" | "type" | "status" | "priority" | "labels" | "dueDate" | "parentId">
   >;
+
+/** The changes the bulk toolbar can apply to many items at once. */
+export type BulkPatch = Partial<Pick<WorkItem, "status" | "priority" | "parentId">>;
 
 export type WorkItemPatch = Partial<
   Pick<
