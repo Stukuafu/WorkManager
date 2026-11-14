@@ -221,7 +221,7 @@ export function ItemForm({
         )}
 
         {error && (
-          <p role="alert" className="mb-3 text-sm font-bold text-brand-red">
+          <p role="alert" className="mb-3 text-sm font-bold text-emphasis">
             {error}
           </p>
         )}
@@ -253,7 +253,7 @@ export function ItemForm({
                 <button
                   type="button"
                   onClick={() => setConfirmingDelete(true)}
-                  className="rounded-md px-3 py-2 text-sm font-bold text-brand-red hover:bg-surface"
+                  className="rounded-md px-3 py-2 text-sm font-bold text-emphasis hover:bg-surface"
                 >
                   Delete
                 </button>

@@ -77,7 +77,7 @@ export function ItemPanel({
           <button
             type="button"
             onClick={() => onOpenItem(parent.id)}
-            className="font-bold text-ink underline decoration-brand-red underline-offset-2 hover:text-brand-red"
+            className="font-bold text-ink underline decoration-brand-red underline-offset-2 hover:text-emphasis"
           >
             {formatItemKey(projectKey, parent.number)} · {parent.title}
           </button>

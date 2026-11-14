@@ -7,6 +7,13 @@
     <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
     <meta name="theme-color" content="#cf122e" />
     <title>Work Manager</title>
+    <script>
+      // Apply a saved light/dark choice before first paint so the page does not flash the wrong theme.
+      try {
+        var t = localStorage.getItem("work-manager:theme");
+        if (t === "light" || t === "dark") document.documentElement.setAttribute("data-theme", t);
+      } catch (e) {}
+    </script>
   </head>
   <body>
     <div id="root"></div>

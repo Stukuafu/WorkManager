@@ -22,6 +22,7 @@ npm run build   # type-check and build
 - Notes on each item (add, edit, delete), with note counts on the list and board
 - Backup: export and import all data as JSON, including notes (data lives in this browser only). Backups from earlier versions still import
 - Shortcuts: `C` new item, `/` search
+- Light and dark themes: follows your system by default, or choose Light or Dark from the header (remembered in this browser)
 - Styled with the Ricoh brand palette, shape language and Arial fallback typography (no logo)
 
 ## Deploy

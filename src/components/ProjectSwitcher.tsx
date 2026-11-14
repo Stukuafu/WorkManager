@@ -21,7 +21,7 @@ export function ProjectSwitcher({ projects, activeId, onSelect, onNew }: Project
             id={selectId}
             value={activeId ?? ""}
             onChange={(e) => onSelect(e.target.value)}
-            className="rounded-md border border-line bg-white px-3 py-2 text-sm font-bold text-ink hover:border-brand-gray"
+            className="rounded-md border border-line bg-card px-3 py-2 text-sm font-bold text-ink hover:border-brand-gray"
           >
             {projects.map((p) => (
               <option key={p.id} value={p.id}>

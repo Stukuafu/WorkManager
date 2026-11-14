@@ -140,9 +140,11 @@ Each milestone ends with something you can click through.
 - **Search in notes:** the list search also matches note text; rows that matched only through a note are labelled.
 - **Saved filters:** named sets of list filters, per project (`SavedFilter`). Saving under an existing name (ignoring case) replaces it; at most 30 per project. A saved label or story that no longer exists is dropped when the filter is applied. Schema is now **version 4**; versions 1-3 upgrade automatically.
 
+- **Dark mode:** light, dark, or follow the system. Surfaces, text and lines are themed CSS variables; brand red, the secondary palette and the pastel tints stay constant, with fixed dark text on them. Text in brand red uses a lighter red on dark so it stays readable. All screens pass an automated contrast audit in both themes.
+
 ## 8. Out of scope for the PoC (possible later)
 
-Sprints and backlog, time tracking and estimates, dashboards and burndown, custom workflows, multi-user accounts and assignees, notifications, attachments, a backend (Supabase or a Node API), and dark mode.
+Sprints and backlog, time tracking and estimates, dashboards and burndown, custom workflows, multi-user accounts and assignees, notifications, attachments, and a backend (Supabase or a Node API).
 
 ## 9. Risks and open questions
 

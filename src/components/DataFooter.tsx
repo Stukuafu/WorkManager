@@ -9,7 +9,7 @@ interface DataFooterProps {
   onImport(raw: unknown): Promise<void>;
 }
 
-const button = "rounded-md px-3 py-1.5 text-sm font-bold hover:bg-white";
+const button = "rounded-md px-3 py-1.5 text-sm font-bold hover:bg-card";
 
 export function DataFooter({ onExport, onImport }: DataFooterProps) {
   const id = useId();
@@ -67,8 +67,8 @@ export function DataFooter({ onExport, onImport }: DataFooterProps) {
     <footer className="mx-auto w-full max-w-6xl px-6 pb-10 pt-4 text-sm">
       <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line pt-4">
         <p>
-          Shortcuts: <kbd className="rounded border border-line bg-white px-1.5 font-mono">C</kbd> new
-          item · <kbd className="rounded border border-line bg-white px-1.5 font-mono">/</kbd> search
+          Shortcuts: <kbd className="rounded border border-line bg-card px-1.5 font-mono">C</kbd> new
+          item · <kbd className="rounded border border-line bg-card px-1.5 font-mono">/</kbd> search
         </p>
         <div className="flex items-center gap-1">
           <p role="status" className="mr-2">
@@ -96,7 +96,7 @@ export function DataFooter({ onExport, onImport }: DataFooterProps) {
         another device.
       </p>
       {error && (
-        <p role="alert" className="mt-2 font-bold text-brand-red">
+        <p role="alert" className="mt-2 font-bold text-emphasis">
           {error}
         </p>
       )}

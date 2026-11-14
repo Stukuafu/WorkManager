@@ -13,7 +13,7 @@ interface SavedFiltersProps {
   onDelete(id: string): Promise<void>;
 }
 
-const small = "rounded-md px-2 py-1.5 text-sm font-bold hover:bg-white";
+const small = "rounded-md px-2 py-1.5 text-sm font-bold hover:bg-card";
 
 /** Pick, save and delete named sets of list filters. */
 export function SavedFilters({ saved, current, active, onApply, onSave, onDelete }: SavedFiltersProps) {
@@ -60,7 +60,7 @@ export function SavedFilters({ saved, current, active, onApply, onSave, onDelete
             if (chosen) onApply(chosen.filters);
             setConfirmingDelete(false);
           }}
-          className="rounded-md border border-line bg-white px-2 py-1.5 text-sm text-ink hover:border-brand-gray"
+          className="rounded-md border border-line bg-card px-2 py-1.5 text-sm text-ink hover:border-brand-gray"
         >
           <option value="" disabled>
             Saved filters…
@@ -90,13 +90,13 @@ export function SavedFilters({ saved, current, active, onApply, onSave, onDelete
             </button>
           </span>
         ) : (
-          <button type="button" onClick={() => setConfirmingDelete(true)} className={`${small} text-brand-red`}>
+          <button type="button" onClick={() => setConfirmingDelete(true)} className={`${small} text-emphasis`}>
             Delete saved filter
           </button>
         ))}
 
       {active && !matching && !naming && (
-        <button type="button" onClick={() => setNaming(true)} className={`${small} text-brand-red`}>
+        <button type="button" onClick={() => setNaming(true)} className={`${small} text-emphasis`}>
           Save filters
         </button>
       )}
@@ -136,7 +136,7 @@ export function SavedFilters({ saved, current, active, onApply, onSave, onDelete
       )}
 
       {error && (
-        <p role="alert" className="text-sm font-bold text-brand-red">
+        <p role="alert" className="text-sm font-bold text-emphasis">
           {error}
         </p>
       )}

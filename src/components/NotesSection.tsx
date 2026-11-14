@@ -109,7 +109,7 @@ export function NotesSection({ itemId, loadNotes, onAdd, onUpdate, onDelete }: N
       </div>
 
       {error && (
-        <p role="alert" className="mt-3 text-sm font-bold text-brand-red">
+        <p role="alert" className="mt-3 text-sm font-bold text-emphasis">
           {error}
         </p>
       )}
@@ -192,7 +192,7 @@ export function NotesSection({ itemId, loadNotes, onAdd, onUpdate, onDelete }: N
                         <button
                           type="button"
                           onClick={() => setDeletingId(note.id)}
-                          className={`${smallButton} text-brand-red`}
+                          className={`${smallButton} text-emphasis`}
                         >
                           Delete
                         </button>

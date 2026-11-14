@@ -1,13 +1,17 @@
 @import "tailwindcss";
 
-/* Brand tokens: RICOH Brand Communication Guidelines v6.0 (sections 3.6, 3.7) */
+/*
+ * Brand tokens: RICOH Brand Communication Guidelines v6.0 (sections 3.6, 3.7).
+ *
+ * Constant colours (brand red, the secondary palette and its pastel tints) look the same in
+ * both themes. Themed colours (surfaces, text, lines and the red used for text) are defined
+ * as --c-* variables below and switch with the theme.
+ */
 @theme {
   --color-brand-red: #cf122e;
   --color-brand-red-dark: #a80e25;
-  --color-brand-gray: #64666a;
-  --color-ink: #2b2c2e;
-  --color-surface: #f5f5f6;
-  --color-line: #e2e3e5;
+  /* Dark text for use on the bright secondary colours and pastel tints, in either theme. */
+  --color-on-color: #2b2c2e;
 
   /* Secondary (clear) colours */
   --color-accent-pink: #ff9aa8;
@@ -29,19 +33,64 @@
   --radius-card: 0.75rem;
 }
 
+/* Themed colours resolve to the variables below at use, so one class works in both themes. */
+@theme inline {
+  --color-card: var(--c-card);
+  --color-surface: var(--c-surface);
+  --color-ink: var(--c-ink);
+  --color-brand-gray: var(--c-gray);
+  --color-line: var(--c-line);
+  /* Brand red for text and icons: darker red on light, a lighter red on dark so it stays readable. */
+  --color-emphasis: var(--c-emphasis);
+}
+
+:root {
+  color-scheme: light;
+  --c-card: #ffffff;
+  --c-surface: #f5f5f6;
+  --c-ink: #2b2c2e;
+  --c-gray: #64666a;
+  --c-line: #e2e3e5;
+  --c-emphasis: #cf122e;
+}
+
+/* Dark: chosen explicitly... */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --c-card: #1d1e21;
+  --c-surface: #131416;
+  --c-ink: #ececee;
+  --c-gray: #a4a7ad;
+  --c-line: #35373b;
+  --c-emphasis: #ff6b7f;
+}
+
+/* ...or following the system, unless light was chosen explicitly. Keep in step with the block above. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --c-card: #1d1e21;
+    --c-surface: #131416;
+    --c-ink: #ececee;
+    --c-gray: #a4a7ad;
+    --c-line: #35373b;
+    --c-emphasis: #ff6b7f;
+  }
+}
+
 @layer base {
   html {
     font-family: var(--font-sans);
-    color: var(--color-brand-gray);
-    background: #fff;
+    color: var(--c-gray);
+    background: var(--c-surface);
     -webkit-font-smoothing: antialiased;
   }
   h1, h2, h3 {
     font-weight: 300; /* Frutiger 45 Light style headings */
-    color: var(--color-brand-red);
+    color: var(--c-emphasis);
   }
   :focus-visible {
-    outline: 2px solid var(--color-brand-red);
+    outline: 2px solid var(--c-emphasis);
     outline-offset: 2px;
   }
 }

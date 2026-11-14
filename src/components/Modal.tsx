@@ -27,7 +27,7 @@ export function Modal({ title, titleId, onClose, children }: ModalProps) {
 
   return (
     <div
-      className="fixed inset-0 z-10 flex items-center justify-center overflow-y-auto bg-ink/40 p-4"
+      className="fixed inset-0 z-10 flex items-center justify-center overflow-y-auto bg-black/40 p-4"
       onMouseDown={(e) => e.target === e.currentTarget && onClose()}
     >
       <div
@@ -35,7 +35,7 @@ export function Modal({ title, titleId, onClose, children }: ModalProps) {
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className="w-full max-w-lg rounded-card bg-white p-6 shadow-xl"
+        className="w-full max-w-lg rounded-card bg-card p-6 shadow-xl"
       >
         <h2 id={titleId} className="mb-4 text-xl">
           {title}
@@ -47,4 +47,4 @@ export function Modal({ title, titleId, onClose, children }: ModalProps) {
 }
 
 export const inputClass =
-  "w-full rounded-md border border-line bg-white px-3 py-2 text-ink placeholder:text-brand-gray/80 focus:border-brand-red";
+  "w-full rounded-md border border-line bg-card px-3 py-2 text-ink placeholder:text-brand-gray/80 focus:border-brand-red";

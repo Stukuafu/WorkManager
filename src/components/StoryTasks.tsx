@@ -119,7 +119,7 @@ export function StoryTasks({
             <button
               type="submit"
               disabled={busy}
-              className="shrink-0 rounded-md border border-brand-red px-3 py-2 text-sm font-bold text-brand-red transition hover:bg-brand-red hover:text-white disabled:opacity-60"
+              className="shrink-0 rounded-md border border-brand-red px-3 py-2 text-sm font-bold text-emphasis transition hover:bg-brand-red hover:text-white disabled:opacity-60"
             >
               Add to story
             </button>
@@ -128,7 +128,7 @@ export function StoryTasks({
       )}
 
       {error && (
-        <p role="alert" className="mt-3 text-sm font-bold text-brand-red">
+        <p role="alert" className="mt-3 text-sm font-bold text-emphasis">
           {error}
         </p>
       )}
@@ -145,7 +145,7 @@ export function StoryTasks({
                 <button
                   type="button"
                   onClick={() => onOpen(task.id)}
-                  className={`min-w-0 flex-1 text-left text-sm font-bold hover:text-brand-red ${
+                  className={`min-w-0 flex-1 text-left text-sm font-bold hover:text-emphasis ${
                     task.status === "done" ? "text-brand-gray line-through" : "text-ink"
                   }`}
                 >
@@ -158,7 +158,7 @@ export function StoryTasks({
                   value={task.status}
                   disabled={busy}
                   onChange={(e) => void guarded(() => onStatusChange(task, e.target.value as Status))}
-                  className="rounded-md border border-line bg-white px-2 py-1 text-xs font-bold text-ink hover:border-brand-gray"
+                  className="rounded-md border border-line bg-card px-2 py-1 text-xs font-bold text-ink hover:border-brand-gray"
                 >
                   {STATUSES.map((s) => (
                     <option key={s} value={s}>

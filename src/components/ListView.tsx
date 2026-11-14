@@ -49,7 +49,7 @@ const COLUMNS: { field: SortField; label: string }[] = [
 ];
 
 const filterSelect =
-  "rounded-md border border-line bg-white px-2 py-1.5 text-sm text-ink hover:border-brand-gray";
+  "rounded-md border border-line bg-card px-2 py-1.5 text-sm text-ink hover:border-brand-gray";
 
 export function ListView({
   projectKey,
@@ -79,7 +79,7 @@ export function ListView({
 
   if (items.length === 0) {
     return (
-      <div className="rounded-card bg-white p-10 text-center shadow-sm">
+      <div className="rounded-card bg-card p-10 text-center shadow-sm">
         <h2 className="mb-2 text-xl">No work items yet</h2>
         <p className="mb-4 text-sm">Add your first item to start tracking work.</p>
         <button
@@ -103,7 +103,7 @@ export function ListView({
           placeholder="Search key, title, description, label, notes"
           value={filters.query}
           onChange={(e) => set("query", e.target.value)}
-          className="min-w-64 flex-1 rounded-md border border-line bg-white px-3 py-1.5 text-sm text-ink focus:border-brand-red"
+          className="min-w-64 flex-1 rounded-md border border-line bg-card px-3 py-1.5 text-sm text-ink focus:border-brand-red"
         />
         <select
           aria-label="Filter by status"
@@ -186,7 +186,7 @@ export function ListView({
           <button
             type="button"
             onClick={() => setFilters(DEFAULT_FILTERS)}
-            className="rounded-md px-2 py-1.5 text-sm font-bold text-brand-red hover:bg-white"
+            className="rounded-md px-2 py-1.5 text-sm font-bold text-emphasis hover:bg-card"
           >
             Clear filters
           </button>
@@ -198,11 +198,11 @@ export function ListView({
       </p>
 
       {visible.length === 0 ? (
-        <div className="rounded-card bg-white p-8 text-center text-sm shadow-sm">
+        <div className="rounded-card bg-card p-8 text-center text-sm shadow-sm">
           No items match your filters.
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-card bg-white shadow-sm">
+        <div className="overflow-x-auto rounded-card bg-card shadow-sm">
           <table className="w-full text-left text-sm">
             <thead className="border-b border-line text-xs uppercase tracking-wide">
               <tr>
@@ -218,12 +218,12 @@ export function ListView({
                       <button
                         type="button"
                         onClick={() => setSort((current) => nextSort(current, field))}
-                        className={`inline-flex items-center gap-1 rounded uppercase tracking-wide hover:text-brand-red ${
+                        className={`inline-flex items-center gap-1 rounded uppercase tracking-wide hover:text-emphasis ${
                           active ? "font-bold text-ink" : ""
                         }`}
                       >
                         {label}
-                        <span aria-hidden="true" className="w-3 text-brand-red">
+                        <span aria-hidden="true" className="w-3 text-emphasis">
                           {active ? (sort.direction === "asc" ? "▲" : "▼") : ""}
                         </span>
                       </button>
@@ -242,13 +242,13 @@ export function ListView({
                       <button
                         type="button"
                         onClick={() => onOpen(item)}
-                        className="text-left font-bold text-ink hover:text-brand-red"
+                        className="text-left font-bold text-ink hover:text-emphasis"
                       >
                         {item.title}
                       </button>
                       {item.parentId && byId.get(item.parentId) && (
                         <span
-                          className="ml-2 inline-block rounded-md bg-tint-pink px-1.5 py-0.5 align-middle text-xs font-bold text-ink"
+                          className="ml-2 inline-block rounded-md bg-tint-pink px-1.5 py-0.5 align-middle text-xs font-bold text-on-color"
                           title={`Part of ${byId.get(item.parentId)?.title}`}
                         >
                           <span className="sr-only">Part of </span>
@@ -287,7 +287,7 @@ export function ListView({
                         aria-label={`Status of ${key}`}
                         value={item.status}
                         onChange={(e) => onStatusChange(item, e.target.value as Status)}
-                        className="rounded-md border border-line bg-white px-2 py-1 text-xs font-bold text-ink hover:border-brand-gray"
+                        className="rounded-md border border-line bg-card px-2 py-1 text-xs font-bold text-ink hover:border-brand-gray"
                       >
                         {STATUSES.map((s) => (
                           <option key={s} value={s}>

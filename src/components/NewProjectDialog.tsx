@@ -69,7 +69,7 @@ export function NewProjectDialog({ onSubmit, onCancel }: NewProjectDialogProps) 
         </p>
 
         {error && (
-          <p role="alert" className="mt-3 text-sm font-bold text-brand-red">
+          <p role="alert" className="mt-3 text-sm font-bold text-emphasis">
             {error}
           </p>
         )}

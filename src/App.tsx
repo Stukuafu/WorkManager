@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Balloon } from "./components/Balloon";
 import { NewProjectDialog } from "./components/NewProjectDialog";
+import { ThemeSelect } from "./components/ThemeSelect";
 import { ProjectBanner } from "./components/ProjectBanner";
 import { ProjectSwitcher } from "./components/ProjectSwitcher";
 import { useShortcuts } from "./components/useShortcuts";
@@ -72,30 +73,33 @@ export default function App() {
     <div className="flex min-h-screen flex-col bg-surface">
       <a
         href="#main"
-        className="sr-only z-20 rounded-md bg-white px-3 py-2 font-bold text-brand-red focus:not-sr-only focus:absolute focus:left-4 focus:top-4"
+        className="sr-only z-20 rounded-md bg-card px-3 py-2 font-bold text-emphasis focus:not-sr-only focus:absolute focus:left-4 focus:top-4"
       >
         Skip to content
       </a>
-      <header className="border-t-4 border-brand-red bg-white shadow-sm">
+      <header className="border-t-4 border-brand-red bg-card shadow-sm">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-6 py-4">
           <div className="flex items-center gap-3">
             <Balloon size={28} />
             <h1 className="text-2xl">Work Manager</h1>
           </div>
-          {loaded && (
-            <ProjectSwitcher
-              projects={projects}
-              activeId={activeProjectId}
-              onSelect={selectProject}
-              onNew={() => setCreating(true)}
-            />
-          )}
+          <div className="flex flex-wrap items-center gap-2">
+            {loaded && (
+              <ProjectSwitcher
+                projects={projects}
+                activeId={activeProjectId}
+                onSelect={selectProject}
+                onNew={() => setCreating(true)}
+              />
+            )}
+            <ThemeSelect />
+          </div>
         </div>
       </header>
 
       <main id="main" className="mx-auto w-full max-w-6xl flex-1 px-6 py-8">
         {loadError && (
-          <p role="alert" className="font-bold text-brand-red">
+          <p role="alert" className="font-bold text-emphasis">
             {loadError}
           </p>
         )}
@@ -124,7 +128,7 @@ export default function App() {
             <ProjectBanner project={activeProject} stats={projectStats(items, todayString())} />
 
             <div className="mb-4 flex items-center justify-between gap-3">
-              <div role="tablist" aria-label="View" className="flex gap-1 rounded-md bg-white p-1 shadow-sm">
+              <div role="tablist" aria-label="View" className="flex gap-1 rounded-md bg-card p-1 shadow-sm">
                 {(["list", "board"] as const).map((v) => (
                   <button
                     key={v}
@@ -150,7 +154,7 @@ export default function App() {
             </div>
 
             {actionError && (
-              <p role="alert" className="mb-3 text-sm font-bold text-brand-red">
+              <p role="alert" className="mb-3 text-sm font-bold text-emphasis">
                 {actionError}
               </p>
             )}

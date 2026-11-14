@@ -26,13 +26,13 @@ export function Drawer({ title, titleId, onClose, children }: DrawerProps) {
   }, [onClose]);
 
   return (
-    <div className="fixed inset-0 z-10 bg-ink/30" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+    <div className="fixed inset-0 z-10 bg-black/40" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <div
         ref={panelRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className="drawer-enter absolute inset-y-0 right-0 flex w-full max-w-md flex-col overflow-y-auto bg-white p-6 shadow-2xl"
+        className="drawer-enter absolute inset-y-0 right-0 flex w-full max-w-md flex-col overflow-y-auto bg-card p-6 shadow-2xl"
       >
         <div className="mb-4 flex items-start justify-between gap-4">
           <h2 id={titleId} className="text-xl">

@@ -207,11 +207,11 @@ function Column({
     <section
       aria-label={STATUS_LABELS[status]}
       className={`flex min-h-48 flex-col rounded-card p-3 shadow-sm transition-colors ${
-        isOver ? "bg-tint-pink/40" : "bg-white"
+        isOver ? "bg-tint-pink/40" : "bg-card"
       }`}
     >
       <div
-        className={`mb-3 flex items-center justify-between rounded-md px-3 py-1.5 text-sm font-bold text-ink ${STATUS_TINT[status]}`}
+        className={`mb-3 flex items-center justify-between rounded-md px-3 py-1.5 text-sm font-bold text-on-color ${STATUS_TINT[status]}`}
       >
         {STATUS_LABELS[status]}
         <span>{ids.length}</span>
@@ -299,7 +299,7 @@ function CardBody({
 }) {
   return (
     <div
-      className={`rounded-md border bg-white p-3 ${
+      className={`rounded-md border bg-card p-3 ${
         dragging ? "rotate-2 border-brand-red shadow-xl" : "border-line hover:border-brand-gray"
       }`}
     >
@@ -311,7 +311,7 @@ function CardBody({
         <button
           type="button"
           onClick={() => onOpen(item)}
-          className="mb-2 block text-left text-sm font-bold text-ink hover:text-brand-red"
+          className="mb-2 block text-left text-sm font-bold text-ink hover:text-emphasis"
         >
           {item.title}
         </button>
@@ -321,7 +321,7 @@ function CardBody({
       {(parentKey || item.type === "story") && (
         <div className="mb-2 flex flex-wrap items-center gap-2">
           {parentKey && (
-            <span className="rounded-md bg-tint-pink px-1.5 py-0.5 text-xs font-bold text-ink">
+            <span className="rounded-md bg-tint-pink px-1.5 py-0.5 text-xs font-bold text-on-color">
               <span className="sr-only">Part of </span>
               {parentKey}
             </span>
