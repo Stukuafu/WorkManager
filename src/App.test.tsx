@@ -1,4 +1,4 @@
-import { cleanup, render, screen, within } from "@testing-library/react";
+import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import App from "./App";
@@ -80,5 +80,45 @@ describe("App projects flow", () => {
     await user.click(screen.getByRole("tab", { name: "list" }));
     expect(await screen.findByText("WM-3")).toBeInTheDocument();
     expect(screen.queryByText("WM-1")).not.toBeInTheDocument();
+  });
+
+  it("supports keyboard shortcuts and restores focus after closing a dialog", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(await screen.findByRole("button", { name: "New project" }));
+    await user.type(screen.getByLabelText("Name"), "Work Manager");
+    await user.click(screen.getByRole("button", { name: "Create project" }));
+    await screen.findByText("No work items yet");
+
+    // "c" opens the new item dialog, but typing "c" into a field does not.
+    await user.keyboard("c");
+    const title = await screen.findByLabelText("Title");
+    await user.type(title, "cc");
+    expect(title).toHaveValue("cc");
+    await user.type(title, "{Escape}");
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+
+    // "/" jumps to search once there are items.
+    await user.keyboard("c");
+    await user.type(await screen.findByLabelText("Title"), "First");
+    await user.click(screen.getByRole("button", { name: "Create item" }));
+    await user.click(screen.getByRole("tab", { name: "board" }));
+    await user.keyboard("/");
+    await waitFor(() => expect(screen.getByLabelText("Search items")).toHaveFocus());
+  });
+
+  it("shows project stats in the banner", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(await screen.findByRole("button", { name: "New project" }));
+    await user.type(screen.getByLabelText("Name"), "Work Manager");
+    await user.click(screen.getByRole("button", { name: "Create project" }));
+    await user.click(await screen.findByRole("button", { name: "New item" }));
+    await user.type(screen.getByLabelText("Title"), "Late one");
+    await user.type(screen.getByLabelText("Due date"), "2020-01-01");
+    await user.click(screen.getByRole("button", { name: "Create item" }));
+    expect(await screen.findByText("Overdue")).toBeInTheDocument();
+    expect(screen.getByText("Overdue").nextSibling).toHaveTextContent("1");
+    expect(screen.getByText("Open").nextSibling).toHaveTextContent("1");
   });
 });

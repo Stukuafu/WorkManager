@@ -10,8 +10,9 @@ import type {
   WorkItem,
   WorkItemPatch,
 } from "../domain/types";
+import { parseStoredData } from "../storage/validate";
 import { LocalStorageRepository } from "../storage/localStorageRepository";
-import type { Repository } from "../storage/repository";
+import type { Repository, StoredData } from "../storage/repository";
 
 const ACTIVE_PROJECT_KEY = "work-manager:active-project";
 
@@ -29,6 +30,10 @@ export interface AppState {
   createItem(input: NewWorkItem): Promise<WorkItem>;
   updateItem(id: string, patch: WorkItemPatch): Promise<WorkItem>;
   deleteItem(id: string): Promise<void>;
+  /** Everything as a plain object, for backup. */
+  exportData(): Promise<StoredData>;
+  /** Replace all data with a validated backup. Throws with a readable message if invalid. */
+  importData(raw: unknown): Promise<void>;
   /** Status history for an item, oldest first. */
   loadHistory(id: string): Promise<StatusChange[]>;
   /** Move an item to a column and position. Updates the UI immediately, then persists. */
@@ -117,6 +122,17 @@ export function createAppStore(repo: Repository) {
       async deleteItem(id) {
         await repo.deleteItem(id);
         set({ items: get().items.filter((i) => i.id !== id) });
+      },
+
+      async exportData() {
+        return repo.exportData();
+      },
+
+      async importData(raw) {
+        // Validate first so a bad file never touches existing data.
+        const data = parseStoredData(raw);
+        await repo.importData(data);
+        await get().init();
       },
 
       async loadHistory(id) {

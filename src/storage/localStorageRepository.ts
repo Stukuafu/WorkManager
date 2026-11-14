@@ -16,6 +16,7 @@ import {
   SCHEMA_VERSION,
   type StoredData,
 } from "./repository";
+import { parseStoredData } from "./validate";
 
 const STORAGE_KEY = "work-manager:data";
 
@@ -31,27 +32,6 @@ function now(): string {
 
 function newId(): string {
   return crypto.randomUUID();
-}
-
-/** Validate and normalise unknown input (stored or imported) into StoredData. */
-export function parseStoredData(raw: unknown): StoredData {
-  if (typeof raw !== "object" || raw === null) {
-    throw new RepositoryError("Data is not an object");
-  }
-  const d = raw as Partial<StoredData>;
-  if (typeof d.version !== "number" || d.version > SCHEMA_VERSION) {
-    throw new RepositoryError(`Unsupported data version: ${String(d.version)}`);
-  }
-  if (!Array.isArray(d.projects) || !Array.isArray(d.items) || !Array.isArray(d.statusChanges)) {
-    throw new RepositoryError("Data is missing projects, items or statusChanges");
-  }
-  // Future migrations from older versions go here.
-  return {
-    version: SCHEMA_VERSION,
-    projects: d.projects,
-    items: d.items,
-    statusChanges: d.statusChanges,
-  };
 }
 
 export class LocalStorageRepository implements Repository {

@@ -152,3 +152,29 @@ describe("app store moving items", () => {
     repo.moveItem = original;
   });
 });
+
+describe("app store backup", () => {
+  it("exports and imports into a fresh store", async () => {
+    const source = createAppStore(repo);
+    await source.getState().init();
+    await source.getState().createProject({ key: "WM", name: "Work Manager" });
+    await source.getState().createItem({ title: "kept" });
+    const backup = JSON.parse(JSON.stringify(await source.getState().exportData()));
+
+    const target = createAppStore(new LocalStorageRepository(new MemoryStorage()));
+    await target.getState().init();
+    await target.getState().importData(backup);
+    expect(target.getState().projects.map((p) => p.key)).toEqual(["WM"]);
+    expect(target.getState().items.map((i) => i.title)).toEqual(["kept"]);
+    expect(target.getState().activeProjectId).toBe(target.getState().projects[0].id);
+  });
+
+  it("leaves existing data untouched when the import is invalid", async () => {
+    const store = createAppStore(repo);
+    await store.getState().init();
+    await store.getState().createProject({ key: "WM", name: "Work Manager" });
+    await expect(store.getState().importData({ version: 1, projects: "x" })).rejects.toThrow();
+    expect(store.getState().projects).toHaveLength(1);
+    expect((await repo.exportData()).projects).toHaveLength(1);
+  });
+});

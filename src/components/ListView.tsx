@@ -61,6 +61,7 @@ export function ListView({ projectKey, items, onOpen, onStatusChange, onCreate }
     <div>
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <input
+          id="search-items"
           type="search"
           aria-label="Search items"
           placeholder="Search key, title, description, label"

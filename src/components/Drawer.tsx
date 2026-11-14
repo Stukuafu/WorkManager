@@ -1,4 +1,5 @@
 import { type ReactNode, useEffect, useRef } from "react";
+import { useRestoreFocus } from "./useRestoreFocus";
 
 interface DrawerProps {
   title: string;
@@ -9,7 +10,8 @@ interface DrawerProps {
 
 /** Right-hand side panel. Focuses the first field, closes on Esc, close button or backdrop click. */
 export function Drawer({ title, titleId, onClose, children }: DrawerProps) {
-  const panelRef = useRef<HTMLElement>(null);
+  useRestoreFocus();
+  const panelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     panelRef.current?.querySelector<HTMLElement>("input, textarea, select")?.focus();
@@ -25,7 +27,7 @@ export function Drawer({ title, titleId, onClose, children }: DrawerProps) {
 
   return (
     <div className="fixed inset-0 z-10 bg-ink/30" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <aside
+      <div
         ref={panelRef}
         role="dialog"
         aria-modal="true"
@@ -46,7 +48,7 @@ export function Drawer({ title, titleId, onClose, children }: DrawerProps) {
           </button>
         </div>
         {children}
-      </aside>
+      </div>
     </div>
   );
 }

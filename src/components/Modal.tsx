@@ -1,4 +1,5 @@
 import { type ReactNode, useEffect, useRef } from "react";
+import { useRestoreFocus } from "./useRestoreFocus";
 
 interface ModalProps {
   title: string;
@@ -9,6 +10,7 @@ interface ModalProps {
 
 /** Accessible modal: focuses the first field, closes on Esc or backdrop click. */
 export function Modal({ title, titleId, onClose, children }: ModalProps) {
+  useRestoreFocus();
   const panelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -45,4 +47,4 @@ export function Modal({ title, titleId, onClose, children }: ModalProps) {
 }
 
 export const inputClass =
-  "w-full rounded-md border border-line bg-white px-3 py-2 text-ink placeholder:text-brand-gray/60 focus:border-brand-red";
+  "w-full rounded-md border border-line bg-white px-3 py-2 text-ink placeholder:text-brand-gray/80 focus:border-brand-red";

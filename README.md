@@ -11,6 +11,21 @@ npm test        # run unit tests
 npm run build   # type-check and build
 ```
 
+## Features
+
+- Projects with a short key; items are numbered `KEY-1`, `KEY-2`, ... and keys are never reused
+- Fixed workflow: To Do, In Progress, In Review, Done
+- List view with search and filters, and a drag-and-drop board (mouse, touch and keyboard)
+- Detail panel with status history, dates and time to complete
+- Backup: export and import all data as JSON (data lives in this browser only)
+- Shortcuts: `C` new item, `/` search
+- Styled with the Ricoh brand palette, shape language and Arial fallback typography (no logo)
+
+## Deploy
+
+Pushes to `main` run lint, tests and build, then publish to GitHub Pages via `.github/workflows/deploy.yml`.
+In the repository settings, set **Pages > Source** to **GitHub Actions** once.
+
 ## Status
 
 - [x] Milestone 1: foundation (Vite + React + TS, brand theme, data model, storage layer, tests)
@@ -18,4 +33,4 @@ npm run build   # type-check and build
 - [x] Milestone 3: items and list view (create, edit, delete, search and filters, read-only board preview)
 - [x] Milestone 4: board (drag and drop between and within columns, keyboard accessible)
 - [x] Milestone 5: detail panel (side panel editing, status history, dates, time to complete)
-- [ ] Milestone 6: polish and deploy
+- [x] Milestone 6: polish and deploy (JSON backup, shortcuts, accessibility pass, GitHub Pages workflow)

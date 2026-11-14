@@ -1,8 +1,12 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Balloon } from "./components/Balloon";
 import { NewProjectDialog } from "./components/NewProjectDialog";
+import { ProjectBanner } from "./components/ProjectBanner";
 import { ProjectSwitcher } from "./components/ProjectSwitcher";
+import { useShortcuts } from "./components/useShortcuts";
+import { projectStats, todayString } from "./domain/stats";
 import { Board } from "./components/Board";
+import { DataFooter } from "./components/DataFooter";
 import { ItemDialog } from "./components/ItemDialog";
 import { ItemPanel } from "./components/ItemPanel";
 import { ListView } from "./components/ListView";
@@ -23,6 +27,8 @@ export default function App() {
   const deleteItem = useAppStore((s) => s.deleteItem);
   const moveItem = useAppStore((s) => s.moveItem);
   const loadHistory = useAppStore((s) => s.loadHistory);
+  const exportData = useAppStore((s) => s.exportData);
+  const importData = useAppStore((s) => s.importData);
   const [creating, setCreating] = useState(false);
   const [creatingItem, setCreatingItem] = useState(false);
   const [openItemId, setOpenItemId] = useState<string | null>(null);
@@ -31,6 +37,14 @@ export default function App() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
 
+  const focusSearch = useCallback(() => {
+    setView("list");
+    // Wait for the list view to render before focusing its search box.
+    requestAnimationFrame(() => document.getElementById("search-items")?.focus());
+  }, []);
+  const startNewItem = useCallback(() => setCreatingItem(true), []);
+  useShortcuts({ onNewItem: startNewItem, onSearch: focusSearch }, !!activeProject);
+
   useEffect(() => {
     init().catch((e: unknown) =>
       setLoadError(e instanceof Error ? e.message : "Could not load data."),
@@ -38,7 +52,13 @@ export default function App() {
   }, [init]);
 
   return (
-    <div className="min-h-screen bg-surface">
+    <div className="flex min-h-screen flex-col bg-surface">
+      <a
+        href="#main"
+        className="sr-only z-20 rounded-md bg-white px-3 py-2 font-bold text-brand-red focus:not-sr-only focus:absolute focus:left-4 focus:top-4"
+      >
+        Skip to content
+      </a>
       <header className="border-t-4 border-brand-red bg-white shadow-sm">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-6 py-4">
           <div className="flex items-center gap-3">
@@ -56,7 +76,7 @@ export default function App() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-6xl px-6 py-8">
+      <main id="main" className="mx-auto w-full max-w-6xl flex-1 px-6 py-8">
         {loadError && (
           <p role="alert" className="font-bold text-brand-red">
             {loadError}
@@ -84,12 +104,8 @@ export default function App() {
 
         {activeProject && (
           <>
-            <div className="mb-6 flex items-center gap-3">
-              <span className="rounded-md bg-brand-red px-2 py-1 font-mono text-sm font-bold text-white">
-                {activeProject.key}
-              </span>
-              <h2 className="text-xl text-ink">{activeProject.name}</h2>
-            </div>
+            <ProjectBanner project={activeProject} stats={projectStats(items, todayString())} />
+
             <div className="mb-4 flex items-center justify-between gap-3">
               <div role="tablist" aria-label="View" className="flex gap-1 rounded-md bg-white p-1 shadow-sm">
                 {(["list", "board"] as const).map((v) => (
@@ -152,6 +168,8 @@ export default function App() {
           </>
         )}
       </main>
+
+      {loaded && <DataFooter onExport={exportData} onImport={importData} />}
 
       {creatingItem && activeProject && (
         <ItemDialog
