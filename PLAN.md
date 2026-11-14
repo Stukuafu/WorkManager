@@ -1,4 +1,4 @@
-# WorkManager: Project Plan
+# Work Manager: Project Plan
 
 A "Jira-lite" tool to enter and track work items through to completion.
 Status: **proof of concept**, single user, no backend.
@@ -107,9 +107,9 @@ Muted and pastel secondary sets are available for soft backgrounds (e.g. pastel 
 
 **Principles:** red is the lead colour with gray and white as the base, and secondary colours are used as the second or third colour after red. Generous white space and rounded corners throughout.
 
-**Open items:**
+**Decisions:**
+- Applying the brand theming (palette, typography, shape language) to this app is **approved**.
 - The Ricoh logo and tagline are protected marks with their own usage rules (protected area, colour, placement). The PoC does **not** include the logo. If it is wanted later, we follow section 3.1-3.3 of the guidelines.
-- Confirm that this internal-only guideline may be applied to this app before it is published publicly (the repo is currently public).
 
 ## 6. Modern and reactive UI goals
 
@@ -139,5 +139,5 @@ Comments, sprints and backlog, time tracking and estimates, dashboards and burnd
 
 - **Data lives in one browser.** Clearing site data loses it. Mitigated by export/import.
 - **Frutiger licensing.** Arial fallback until confirmed.
-- **Brand usage.** See the open items in section 5.
-- **Project name.** The repo is `WorkManager`. The app title can still be "Work Tracking" if preferred.
+- **Brand usage.** The guidelines are marked internal use only and the repo is public. Theming is approved; the logo is excluded.
+- **Naming.** The app title is **Work Manager** (repo: `WorkManager`).
