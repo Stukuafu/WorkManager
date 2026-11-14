@@ -117,7 +117,7 @@ Muted and pastel secondary sets are available for soft backgrounds (e.g. pastel 
 - Instant optimistic updates, with no loading spinners for local data
 - Smooth drag-and-drop with animated card movement and column highlighting
 - Keyboard shortcuts: `C` create item, `/` search, `Esc` close panel
-- Light theme first (brand palette); dark mode is a later option
+- Light and dark themes, both built from the brand palette (see 7a)
 - Accessible: visible focus states, sufficient contrast (checked for red/gray on white), ARIA labels on drag handles
 
 ## 7. Milestones
