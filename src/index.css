@@ -1,0 +1,47 @@
+@import "tailwindcss";
+
+/* Brand tokens: RICOH Brand Communication Guidelines v6.0 (sections 3.6, 3.7) */
+@theme {
+  --color-brand-red: #cf122e;
+  --color-brand-red-dark: #a80e25;
+  --color-brand-gray: #64666a;
+  --color-ink: #2b2c2e;
+  --color-surface: #f5f5f6;
+  --color-line: #e2e3e5;
+
+  /* Secondary (clear) colours */
+  --color-accent-pink: #ff9aa8;
+  --color-accent-yellow: #ffc13d;
+  --color-accent-green: #96c120;
+  --color-accent-teal: #00a9c5;
+  --color-accent-blue: #5ea8e6;
+
+  /* Secondary (pastel) tints for soft backgrounds */
+  --color-tint-pink: #ffcdd3;
+  --color-tint-yellow: #ffe19e;
+  --color-tint-green: #cae08f;
+  --color-tint-teal: #80d4e1;
+  --color-tint-blue: #b0d4f4;
+
+  /* Frutiger is the brand typeface (licensed); Arial is the permitted substitute. */
+  --font-sans: Frutiger, "Frutiger LT Pro", Arial, Helvetica, sans-serif;
+
+  --radius-card: 0.75rem;
+}
+
+@layer base {
+  html {
+    font-family: var(--font-sans);
+    color: var(--color-brand-gray);
+    background: #fff;
+    -webkit-font-smoothing: antialiased;
+  }
+  h1, h2, h3 {
+    font-weight: 300; /* Frutiger 45 Light style headings */
+    color: var(--color-brand-red);
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-brand-red);
+    outline-offset: 2px;
+  }
+}
