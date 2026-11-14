@@ -1,0 +1,101 @@
+import { useEffect, useId, useState } from "react";
+import { formatItemKey } from "../domain/keys";
+import { cycleTime, formatDateTime } from "../domain/time";
+import type { NewWorkItem, StatusChange, WorkItem } from "../domain/types";
+import { STATUS_LABELS } from "../domain/workflow";
+import { Drawer } from "./Drawer";
+import { ItemForm } from "./ItemForm";
+
+interface ItemPanelProps {
+  projectKey: string;
+  item: WorkItem;
+  loadHistory(id: string): Promise<StatusChange[]>;
+  onSave(values: NewWorkItem): Promise<void>;
+  onDelete(): Promise<void>;
+  onClose(): void;
+}
+
+/** Side panel to edit an item and see how it moved through the workflow. */
+export function ItemPanel({ projectKey, item, loadHistory, onSave, onDelete, onClose }: ItemPanelProps) {
+  const id = useId();
+  const key = formatItemKey(projectKey, item.number);
+  const [history, setHistory] = useState<StatusChange[]>([]);
+
+  // Reload whenever the item changes, since saving can change its status.
+  useEffect(() => {
+    let cancelled = false;
+    loadHistory(item.id)
+      .then((changes) => !cancelled && setHistory(changes))
+      .catch(() => !cancelled && setHistory([]));
+    return () => {
+      cancelled = true;
+    };
+  }, [loadHistory, item.id, item.updatedAt]);
+
+  const cycle = cycleTime(item.createdAt, item.completedAt);
+
+  return (
+    <Drawer title={`${key} · Edit item`} titleId={`${id}-title`} onClose={onClose}>
+      <ItemForm
+        key={item.id}
+        item={item}
+        onSubmit={onSave}
+        onDelete={onDelete}
+        onCancel={onClose}
+        cancelLabel="Close"
+      />
+
+      <section aria-labelledby={`${id}-details`} className="mt-8 border-t border-line pt-6">
+        <h3 id={`${id}-details`} className="mb-3 text-lg">
+          Details
+        </h3>
+        <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
+          <dt className="font-bold">Created</dt>
+          <dd>{formatDateTime(item.createdAt)}</dd>
+          <dt className="font-bold">Updated</dt>
+          <dd>{formatDateTime(item.updatedAt)}</dd>
+          {item.completedAt && (
+            <>
+              <dt className="font-bold">Completed</dt>
+              <dd>{formatDateTime(item.completedAt)}</dd>
+            </>
+          )}
+          {cycle && (
+            <>
+              <dt className="font-bold">Time to complete</dt>
+              <dd>{cycle}</dd>
+            </>
+          )}
+        </dl>
+      </section>
+
+      <section aria-labelledby={`${id}-history`} className="mt-6">
+        <h3 id={`${id}-history`} className="mb-3 text-lg">
+          History
+        </h3>
+        {history.length === 0 ? (
+          <p className="text-sm">No history yet.</p>
+        ) : (
+          <ol className="relative space-y-3 border-l-2 border-line pl-4">
+            {[...history].reverse().map((change) => (
+              <li key={change.id} className="text-sm">
+                <span
+                  aria-hidden="true"
+                  className={`absolute -left-[7px] mt-1 h-3 w-3 rounded-full ${
+                    change.to === "done" ? "bg-accent-green" : "bg-brand-red"
+                  }`}
+                />
+                <p className="font-bold text-ink">
+                  {change.from === null
+                    ? `Created in ${STATUS_LABELS[change.to]}`
+                    : `${STATUS_LABELS[change.from]} → ${STATUS_LABELS[change.to]}`}
+                </p>
+                <p className="text-xs">{formatDateTime(change.at)}</p>
+              </li>
+            ))}
+          </ol>
+        )}
+      </section>
+    </Drawer>
+  );
+}

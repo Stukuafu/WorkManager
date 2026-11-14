@@ -4,8 +4,9 @@ import { NewProjectDialog } from "./components/NewProjectDialog";
 import { ProjectSwitcher } from "./components/ProjectSwitcher";
 import { Board } from "./components/Board";
 import { ItemDialog } from "./components/ItemDialog";
+import { ItemPanel } from "./components/ItemPanel";
 import { ListView } from "./components/ListView";
-import type { Status, WorkItem } from "./domain/types";
+import type { Status } from "./domain/types";
 import { selectActiveProject, useAppStore } from "./store/appStore";
 
 export default function App() {
@@ -21,8 +22,11 @@ export default function App() {
   const updateItem = useAppStore((s) => s.updateItem);
   const deleteItem = useAppStore((s) => s.deleteItem);
   const moveItem = useAppStore((s) => s.moveItem);
+  const loadHistory = useAppStore((s) => s.loadHistory);
   const [creating, setCreating] = useState(false);
-  const [itemDialog, setItemDialog] = useState<{ item?: WorkItem } | null>(null);
+  const [creatingItem, setCreatingItem] = useState(false);
+  const [openItemId, setOpenItemId] = useState<string | null>(null);
+  const openItem = items.find((i) => i.id === openItemId);
   const [view, setView] = useState<"list" | "board">("list");
   const [actionError, setActionError] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -105,7 +109,7 @@ export default function App() {
               </div>
               <button
                 type="button"
-                onClick={() => setItemDialog({})}
+                onClick={() => setCreatingItem(true)}
                 className="rounded-md bg-brand-red px-4 py-2 text-sm font-bold text-white transition hover:bg-brand-red-dark"
               >
                 + New item
@@ -123,8 +127,8 @@ export default function App() {
                 key={activeProject.id}
                 projectKey={activeProject.key}
                 items={items}
-                onOpen={(item) => setItemDialog({ item })}
-                onCreate={() => setItemDialog({})}
+                onOpen={(item) => setOpenItemId(item.id)}
+                onCreate={() => setCreatingItem(true)}
                 onStatusChange={(item, status) => {
                   setActionError(null);
                   updateItem(item.id, { status }).catch((e: unknown) =>
@@ -136,7 +140,7 @@ export default function App() {
               <Board
                 projectKey={activeProject.key}
                 items={items}
-                onOpen={(item) => setItemDialog({ item })}
+                onOpen={(item) => setOpenItemId(item.id)}
                 onMove={(id: string, status: Status, index: number) => {
                   setActionError(null);
                   moveItem(id, status, index).catch((e: unknown) =>
@@ -149,24 +153,29 @@ export default function App() {
         )}
       </main>
 
-      {itemDialog && activeProject && (
+      {creatingItem && activeProject && (
         <ItemDialog
-          projectKey={activeProject.key}
-          item={itemDialog.item}
-          onCancel={() => setItemDialog(null)}
+          onCancel={() => setCreatingItem(false)}
           onSubmit={async (values) => {
-            if (itemDialog.item) await updateItem(itemDialog.item.id, values);
-            else await createItem(values);
-            setItemDialog(null);
+            await createItem(values);
+            setCreatingItem(false);
           }}
-          onDelete={
-            itemDialog.item
-              ? async () => {
-                  await deleteItem(itemDialog.item!.id);
-                  setItemDialog(null);
-                }
-              : undefined
-          }
+        />
+      )}
+
+      {openItem && activeProject && (
+        <ItemPanel
+          projectKey={activeProject.key}
+          item={openItem}
+          loadHistory={loadHistory}
+          onClose={() => setOpenItemId(null)}
+          onSave={async (values) => {
+            await updateItem(openItem.id, values);
+          }}
+          onDelete={async () => {
+            await deleteItem(openItem.id);
+            setOpenItemId(null);
+          }}
         />
       )}
 

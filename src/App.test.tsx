@@ -58,11 +58,15 @@ describe("App projects flow", () => {
     await user.click(screen.getByRole("tab", { name: "board" }));
     expect(within(screen.getByRole("region", { name: "Done" })).getByText("Build login")).toBeInTheDocument();
 
-    // Edit via the dialog.
+    // Edit via the detail panel, which stays open after saving and shows history.
     await user.click(screen.getByRole("button", { name: /Build login/ }));
+    expect(await screen.findByText("To Do → Done")).toBeInTheDocument();
     await user.clear(screen.getByLabelText("Title"));
     await user.type(screen.getByLabelText("Title"), "Build sign-in");
     await user.click(screen.getByRole("button", { name: "Save changes" }));
+    expect(await screen.findByText("✓ Saved")).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "WM-1 · Edit item" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Close panel" }));
     expect(await screen.findByText("Build sign-in")).toBeInTheDocument();
 
     // Delete, and the key is not reused.

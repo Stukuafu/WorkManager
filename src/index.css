@@ -45,3 +45,24 @@
     outline-offset: 2px;
   }
 }
+
+@keyframes drawer-in {
+  from {
+    transform: translateX(2rem);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.drawer-enter {
+  animation: drawer-in 160ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .drawer-enter {
+    animation: none;
+  }
+}

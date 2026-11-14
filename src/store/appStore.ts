@@ -6,6 +6,7 @@ import type {
   NewWorkItem,
   Project,
   Status,
+  StatusChange,
   WorkItem,
   WorkItemPatch,
 } from "../domain/types";
@@ -28,6 +29,8 @@ export interface AppState {
   createItem(input: NewWorkItem): Promise<WorkItem>;
   updateItem(id: string, patch: WorkItemPatch): Promise<WorkItem>;
   deleteItem(id: string): Promise<void>;
+  /** Status history for an item, oldest first. */
+  loadHistory(id: string): Promise<StatusChange[]>;
   /** Move an item to a column and position. Updates the UI immediately, then persists. */
   moveItem(id: string, status: Status, index: number): Promise<void>;
 }
@@ -114,6 +117,11 @@ export function createAppStore(repo: Repository) {
       async deleteItem(id) {
         await repo.deleteItem(id);
         set({ items: get().items.filter((i) => i.id !== id) });
+      },
+
+      async loadHistory(id) {
+        const changes = await repo.listStatusChanges(id);
+        return [...changes].sort((a, b) => a.at.localeCompare(b.at));
       },
 
       async moveItem(id, status, index) {
