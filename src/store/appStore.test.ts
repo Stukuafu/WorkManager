@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
+import { countNotes } from "../domain/notes";
 import { LocalStorageRepository } from "../storage/localStorageRepository";
 import { createAppStore } from "./appStore";
 
@@ -192,7 +193,7 @@ describe("app store notes", () => {
     const { store, item } = await setup();
     const a = await store.getState().addNote(item.id, "first");
     await store.getState().addNote(item.id, "second");
-    expect(store.getState().noteCounts).toEqual({ [item.id]: 2 });
+    expect(countNotes(store.getState().notes)).toEqual({ [item.id]: 2 });
 
     const edited = await store.getState().updateNote(a.id, "first (edited)");
     expect(edited.body).toBe("first (edited)");
@@ -201,9 +202,9 @@ describe("app store notes", () => {
       "second",
     ]);
 
-    await store.getState().deleteNote(item.id, a.id);
-    await store.getState().deleteNote(item.id, (await store.getState().loadNotes(item.id))[0].id);
-    expect(store.getState().noteCounts).toEqual({});
+    await store.getState().deleteNote(a.id);
+    await store.getState().deleteNote((await store.getState().loadNotes(item.id))[0].id);
+    expect(countNotes(store.getState().notes)).toEqual({});
   });
 
   it("restores counts on init and clears them when the item is deleted", async () => {
@@ -212,16 +213,16 @@ describe("app store notes", () => {
 
     const reloaded = createAppStore(repo);
     await reloaded.getState().init();
-    expect(reloaded.getState().noteCounts).toEqual({ [item.id]: 1 });
+    expect(countNotes(reloaded.getState().notes)).toEqual({ [item.id]: 1 });
 
     await reloaded.getState().deleteItem(item.id);
-    expect(reloaded.getState().noteCounts).toEqual({});
+    expect(countNotes(reloaded.getState().notes)).toEqual({});
   });
 
   it("rejects empty notes without changing counts", async () => {
     const { store, item } = await setup();
     await expect(store.getState().addNote(item.id, "  ")).rejects.toThrow();
-    expect(store.getState().noteCounts).toEqual({});
+    expect(countNotes(store.getState().notes)).toEqual({});
   });
 
   it("keeps counts per project", async () => {
@@ -229,8 +230,8 @@ describe("app store notes", () => {
     await store.getState().addNote(item.id, "x");
     const first = store.getState().activeProjectId!;
     await store.getState().createProject({ key: "OT", name: "Other" });
-    expect(store.getState().noteCounts).toEqual({});
+    expect(countNotes(store.getState().notes)).toEqual({});
     await store.getState().selectProject(first);
-    expect(store.getState().noteCounts).toEqual({ [item.id]: 1 });
+    expect(countNotes(store.getState().notes)).toEqual({ [item.id]: 1 });
   });
 });

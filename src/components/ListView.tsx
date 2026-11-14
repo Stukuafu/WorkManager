@@ -5,6 +5,7 @@ import {
   filterItems,
   hasActiveFilters,
   type ItemFilters,
+  matchesOnlyInNotes,
 } from "../domain/filter";
 import { storiesIn, storyProgress } from "../domain/hierarchy";
 import { formatItemKey } from "../domain/keys";
@@ -26,6 +27,8 @@ interface ListViewProps {
   projectKey: string;
   items: WorkItem[];
   noteCounts: Record<string, number>;
+  /** Each item's note text, lower-cased, for searching. */
+  noteText: Record<string, string>;
   onOpen(item: WorkItem): void;
   onStatusChange(item: WorkItem, status: Status): void;
   onCreate(): void;
@@ -43,15 +46,23 @@ const COLUMNS: { field: SortField; label: string }[] = [
 const filterSelect =
   "rounded-md border border-line bg-white px-2 py-1.5 text-sm text-ink hover:border-brand-gray";
 
-export function ListView({ projectKey, items, noteCounts, onOpen, onStatusChange, onCreate }: ListViewProps) {
+export function ListView({
+  projectKey,
+  items,
+  noteCounts,
+  noteText,
+  onOpen,
+  onStatusChange,
+  onCreate,
+}: ListViewProps) {
   const [filters, setFilters] = useState<ItemFilters>(DEFAULT_FILTERS);
   const [sort, setSort] = useState<SortState>(DEFAULT_SORT);
   const labels = useMemo(() => collectLabels(items), [items]);
   const stories = useMemo(() => storiesIn(items), [items]);
   const byId = useMemo(() => new Map(items.map((i) => [i.id, i])), [items]);
   const visible = useMemo(
-    () => sortItems(filterItems(items, filters, projectKey), sort),
-    [items, filters, projectKey, sort],
+    () => sortItems(filterItems(items, filters, projectKey, noteText), sort),
+    [items, filters, projectKey, noteText, sort],
   );
 
   function set<K extends keyof ItemFilters>(key: K, value: ItemFilters[K]) {
@@ -81,7 +92,7 @@ export function ListView({ projectKey, items, noteCounts, onOpen, onStatusChange
           id="search-items"
           type="search"
           aria-label="Search items"
-          placeholder="Search key, title, description, label"
+          placeholder="Search key, title, description, label, notes"
           value={filters.query}
           onChange={(e) => set("query", e.target.value)}
           className="min-w-64 flex-1 rounded-md border border-line bg-white px-3 py-1.5 text-sm text-ink focus:border-brand-red"
@@ -236,6 +247,11 @@ export function ListView({ projectKey, items, noteCounts, onOpen, onStatusChange
                       <span className="ml-2 align-middle">
                         <NoteCount count={noteCounts[item.id]} />
                       </span>
+                      {matchesOnlyInNotes(item, filters.query, projectKey, noteText) && (
+                        <span className="ml-2 inline-block rounded-md border border-line px-1.5 py-0.5 align-middle text-xs italic">
+                          matches in notes
+                        </span>
+                      )}
                       {item.labels.length > 0 && (
                         <span className="ml-2 inline-flex flex-wrap gap-1 align-middle">
                           {item.labels.map((l) => (

@@ -301,14 +301,12 @@ export class LocalStorageRepository implements Repository {
     this.save(data);
   }
 
-  async noteCounts(projectId: string): Promise<Record<string, number>> {
+  async listProjectNotes(projectId: string): Promise<Note[]> {
     const data = this.load();
     const itemIds = new Set(data.items.filter((i) => i.projectId === projectId).map((i) => i.id));
-    const counts: Record<string, number> = {};
-    for (const note of data.notes) {
-      if (itemIds.has(note.itemId)) counts[note.itemId] = (counts[note.itemId] ?? 0) + 1;
-    }
-    return counts;
+    return data.notes
+      .filter((n) => itemIds.has(n.itemId))
+      .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
   }
 
   async exportData(): Promise<StoredData> {

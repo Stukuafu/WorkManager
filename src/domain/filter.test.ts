@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { collectLabels, DEFAULT_FILTERS, filterItems, hasActiveFilters, parseLabels } from "./filter";
+import {
+  collectLabels,
+  DEFAULT_FILTERS,
+  filterItems,
+  hasActiveFilters,
+  matchesOnlyInNotes,
+  parseLabels,
+} from "./filter";
 import type { WorkItem } from "./types";
 
 function item(partial: Partial<WorkItem> & { number: number }): WorkItem {
@@ -55,6 +62,36 @@ describe("filterItems", () => {
 
   it("combines filters with AND", () => {
     expect(filterItems(items, { ...DEFAULT_FILTERS, label: "ui", status: "done" }, "WM").map((i) => i.number)).toEqual([3]);
+  });
+});
+
+describe("searching notes", () => {
+  const noteText = { "id-1": "reproduced on safari\nwaiting on api team", "id-2": "login page" };
+
+  it("finds items by text that only appears in their notes", () => {
+    const search = (query: string) =>
+      filterItems(items, { ...DEFAULT_FILTERS, query }, "WM", noteText).map((i) => i.number);
+    expect(search("SAFARI")).toEqual([1]);
+    expect(search("api team")).toEqual([1]);
+    expect(search("nothing anywhere")).toEqual([]);
+  });
+
+  it("still matches fields, and combines with other filters", () => {
+    const withNotes = (f: Partial<typeof DEFAULT_FILTERS>) =>
+      filterItems(items, { ...DEFAULT_FILTERS, ...f }, "WM", noteText).map((i) => i.number);
+    expect(withNotes({ query: "login" })).toEqual([1, 2]);
+    expect(withNotes({ query: "login", type: "bug" })).toEqual([2]);
+  });
+
+  it("does not search notes when none are provided", () => {
+    expect(filterItems(items, { ...DEFAULT_FILTERS, query: "safari" }, "WM")).toEqual([]);
+  });
+
+  it("explains a match that comes only from notes", () => {
+    expect(matchesOnlyInNotes(items[0], "safari", "WM", noteText)).toBe(true);
+    expect(matchesOnlyInNotes(items[0], "login", "WM", noteText)).toBe(false); // in the title
+    expect(matchesOnlyInNotes(items[0], "", "WM", noteText)).toBe(false);
+    expect(matchesOnlyInNotes(items[2], "safari", "WM", noteText)).toBe(false);
   });
 });
 

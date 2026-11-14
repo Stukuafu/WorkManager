@@ -23,8 +23,8 @@ export interface AppState {
   activeProjectId: string | null;
   /** Items of the active project. */
   items: WorkItem[];
-  /** Number of notes per item id in the active project (items with none are absent). */
-  noteCounts: Record<string, number>;
+  /** Every note on every item in the active project. */
+  notes: Note[];
   /** Load persisted data. Call once on startup. */
   init(): Promise<void>;
   /** Create a project and make it active. Rejects with the repository's validation error. */
@@ -41,7 +41,7 @@ export interface AppState {
   loadNotes(itemId: string): Promise<Note[]>;
   addNote(itemId: string, body: string): Promise<Note>;
   updateNote(id: string, body: string): Promise<Note>;
-  deleteNote(itemId: string, id: string): Promise<void>;
+  deleteNote(id: string): Promise<void>;
   /** Status history for an item, oldest first. */
   loadHistory(id: string): Promise<StatusChange[]>;
   /** Move an item to a column and position. Updates the UI immediately, then persists. */
@@ -68,19 +68,11 @@ export function createAppStore(repo: Repository) {
   return createStore<AppState>((set, get) => {
     /** Load items for a project, ignoring the result if the user has since switched away. */
     async function loadItems(projectId: string): Promise<void> {
-      const [items, noteCounts] = await Promise.all([
+      const [items, notes] = await Promise.all([
         repo.listItems(projectId),
-        repo.noteCounts(projectId),
+        repo.listProjectNotes(projectId),
       ]);
-      if (get().activeProjectId === projectId) set({ items, noteCounts });
-    }
-
-    function bumpCount(itemId: string, delta: number): void {
-      const counts = { ...get().noteCounts };
-      const next = (counts[itemId] ?? 0) + delta;
-      if (next > 0) counts[itemId] = next;
-      else delete counts[itemId];
-      set({ noteCounts: counts });
+      if (get().activeProjectId === projectId) set({ items, notes });
     }
 
     function requireActiveProject(): string {
@@ -94,7 +86,7 @@ export function createAppStore(repo: Repository) {
       projects: [],
       activeProjectId: null,
       items: [],
-      noteCounts: {},
+      notes: [],
 
       async init() {
         const projects = await repo.listProjects();
@@ -102,20 +94,20 @@ export function createAppStore(repo: Repository) {
         const activeProjectId =
           projects.find((p) => p.id === saved)?.id ?? projects[0]?.id ?? null;
         const items = activeProjectId ? await repo.listItems(activeProjectId) : [];
-        const noteCounts = activeProjectId ? await repo.noteCounts(activeProjectId) : {};
-        set({ projects, activeProjectId, items, noteCounts, loaded: true });
+        const notes = activeProjectId ? await repo.listProjectNotes(activeProjectId) : [];
+        set({ projects, activeProjectId, items, notes, loaded: true });
       },
 
       async createProject(input) {
         const project = await repo.createProject(input);
-        set({ projects: [...get().projects, project], activeProjectId: project.id, items: [], noteCounts: {} });
+        set({ projects: [...get().projects, project], activeProjectId: project.id, items: [], notes: [] });
         writeActiveId(project.id);
         return project;
       },
 
       async selectProject(id) {
         if (!get().projects.some((p) => p.id === id)) return;
-        set({ activeProjectId: id, items: [], noteCounts: {} });
+        set({ activeProjectId: id, items: [], notes: [] });
         writeActiveId(id);
         await loadItems(id);
       },
@@ -164,17 +156,19 @@ export function createAppStore(repo: Repository) {
 
       async addNote(itemId, body) {
         const note = await repo.addNote(itemId, body);
-        bumpCount(itemId, 1);
+        set({ notes: [...get().notes, note] });
         return note;
       },
 
       async updateNote(id, body) {
-        return repo.updateNote(id, body);
+        const note = await repo.updateNote(id, body);
+        set({ notes: get().notes.map((n) => (n.id === id ? note : n)) });
+        return note;
       },
 
-      async deleteNote(itemId, id) {
+      async deleteNote(id) {
         await repo.deleteNote(id);
-        bumpCount(itemId, -1);
+        set({ notes: get().notes.filter((n) => n.id !== id) });
       },
 
       async loadHistory(id) {

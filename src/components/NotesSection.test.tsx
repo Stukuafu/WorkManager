@@ -29,7 +29,7 @@ function setup(initial: Note[] = []) {
       target.updatedAt = "2026-12-01T00:00:00.000Z";
       return target;
     }),
-    onDelete: vi.fn(async (_itemId: string, id: string) => {
+    onDelete: vi.fn(async (id: string) => {
       notes = notes.filter((n) => n.id !== id);
     }),
   };
@@ -115,7 +115,7 @@ describe("NotesSection", () => {
     await user.click(within(item).getByRole("button", { name: "Delete" }));
     await user.click(screen.getByRole("button", { name: "Yes, delete" }));
     expect(await screen.findByText("No notes yet.")).toBeInTheDocument();
-    expect(api.onDelete).toHaveBeenCalledWith("i1", "a");
+    expect(api.onDelete).toHaveBeenCalledWith("a");
   });
 
   it("shows load errors", async () => {

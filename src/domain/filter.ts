@@ -31,8 +31,38 @@ export function hasActiveFilters(filters: ItemFilters): boolean {
   );
 }
 
-/** Filter items. Search matches key, title, description and labels (case-insensitive). */
-export function filterItems(items: WorkItem[], filters: ItemFilters, projectKey: string): WorkItem[] {
+function fieldsMatch(item: WorkItem, query: string, projectKey: string): boolean {
+  const haystack = [formatItemKey(projectKey, item.number), item.title, item.description, ...item.labels]
+    .join("\n")
+    .toLowerCase();
+  return haystack.includes(query);
+}
+
+/**
+ * True when the search text appears in an item's notes but not in its own fields,
+ * so the list can say why the item matched.
+ */
+export function matchesOnlyInNotes(
+  item: WorkItem,
+  queryText: string,
+  projectKey: string,
+  noteText: Record<string, string>,
+): boolean {
+  const query = queryText.trim().toLowerCase();
+  if (!query) return false;
+  return !fieldsMatch(item, query, projectKey) && (noteText[item.id] ?? "").includes(query);
+}
+
+/**
+ * Filter items. Search matches key, title, description, labels and note text
+ * (case-insensitive). `noteText` is each item's lower-cased notes joined together.
+ */
+export function filterItems(
+  items: WorkItem[],
+  filters: ItemFilters,
+  projectKey: string,
+  noteText: Record<string, string> = {},
+): WorkItem[] {
   const query = filters.query.trim().toLowerCase();
   return items.filter((item) => {
     if (filters.status !== "all" && item.status !== filters.status) return false;
@@ -40,16 +70,8 @@ export function filterItems(items: WorkItem[], filters: ItemFilters, projectKey:
     if (filters.type !== "all" && item.type !== filters.type) return false;
     if (filters.label !== "all" && !item.labels.includes(filters.label)) return false;
     if (filters.parent !== "all" && item.parentId !== filters.parent) return false;
-    if (query) {
-      const haystack = [
-        formatItemKey(projectKey, item.number),
-        item.title,
-        item.description,
-        ...item.labels,
-      ]
-        .join("\n")
-        .toLowerCase();
-      if (!haystack.includes(query)) return false;
+    if (query && !fieldsMatch(item, query, projectKey) && !(noteText[item.id] ?? "").includes(query)) {
+      return false;
     }
     return true;
   });

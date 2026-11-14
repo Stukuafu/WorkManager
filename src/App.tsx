@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Balloon } from "./components/Balloon";
 import { NewProjectDialog } from "./components/NewProjectDialog";
 import { ProjectBanner } from "./components/ProjectBanner";
@@ -11,6 +11,7 @@ import { ItemDialog } from "./components/ItemDialog";
 import { ItemPanel } from "./components/ItemPanel";
 import { ListView } from "./components/ListView";
 import { storiesIn } from "./domain/hierarchy";
+import { countNotes, indexNotes } from "./domain/notes";
 import { formatItemKey } from "./domain/keys";
 import type { Status, WorkItem } from "./domain/types";
 import { selectActiveProject, useAppStore } from "./store/appStore";
@@ -33,7 +34,9 @@ export default function App() {
   const addNote = useAppStore((s) => s.addNote);
   const updateNote = useAppStore((s) => s.updateNote);
   const deleteNote = useAppStore((s) => s.deleteNote);
-  const noteCounts = useAppStore((s) => s.noteCounts);
+  const notes = useAppStore((s) => s.notes);
+  const noteCounts = useMemo(() => countNotes(notes), [notes]);
+  const noteText = useMemo(() => indexNotes(notes), [notes]);
   const exportData = useAppStore((s) => s.exportData);
   const importData = useAppStore((s) => s.importData);
   const [creating, setCreating] = useState(false);
@@ -155,6 +158,7 @@ export default function App() {
                 projectKey={activeProject.key}
                 items={items}
                 noteCounts={noteCounts}
+                noteText={noteText}
                 onOpen={(item) => setOpenItemId(item.id)}
                 onCreate={() => setCreatingItem(true)}
                 onStatusChange={(item, status) => {

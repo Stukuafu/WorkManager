@@ -284,4 +284,41 @@ describe("App projects flow", () => {
     expect(screen.getByRole("progressbar", { name: "Progress of WM-2" })).toBeInTheDocument();
     expect(screen.getByText("Part of")).toBeInTheDocument();
   });
+
+  it("finds items by text inside their notes and says why they matched", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await newProject(user);
+    await newItem(user, "Login crash");
+    await newItem(user, "Update docs");
+
+    await user.click(await screen.findByRole("button", { name: "Login crash" }));
+    await user.type(await screen.findByLabelText("Add a note"), "Reproduced on Safari 17");
+    await user.click(screen.getByRole("button", { name: "Add note" }));
+    await screen.findByText("Reproduced on Safari 17");
+    await user.click(screen.getByRole("button", { name: "Close panel" }));
+
+    const rows = () => within(screen.getByRole("table")).getAllByRole("row").slice(1);
+    await user.type(screen.getByLabelText("Search items"), "safari");
+    expect(rows()).toHaveLength(1);
+    expect(rows()[0]).toHaveTextContent("Login crash");
+    expect(rows()[0]).toHaveTextContent("matches in notes");
+
+    // A match in the title is not labelled as a notes match.
+    await user.clear(screen.getByLabelText("Search items"));
+    await user.type(screen.getByLabelText("Search items"), "login");
+    expect(rows()[0]).not.toHaveTextContent("matches in notes");
+
+    // Editing the note changes what is findable straight away.
+    await user.clear(screen.getByLabelText("Search items"));
+    await user.click(screen.getByRole("button", { name: "Login crash" }));
+    await user.click(await screen.findByRole("button", { name: "Edit" }));
+    await user.clear(screen.getByLabelText("Edit note"));
+    await user.type(screen.getByLabelText("Edit note"), "Fixed in build 42");
+    await user.click(screen.getByRole("button", { name: "Save note" }));
+    await screen.findByText("Fixed in build 42");
+    await user.click(screen.getByRole("button", { name: "Close panel" }));
+    await user.type(screen.getByLabelText("Search items"), "safari");
+    expect(screen.getByText("No items match your filters.")).toBeInTheDocument();
+  });
 });

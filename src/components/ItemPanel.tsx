@@ -22,7 +22,7 @@ interface ItemPanelProps {
   loadNotes(itemId: string): Promise<Note[]>;
   onAddNote(itemId: string, body: string): Promise<Note>;
   onUpdateNote(id: string, body: string): Promise<Note>;
-  onDeleteNote(itemId: string, id: string): Promise<void>;
+  onDeleteNote(id: string): Promise<void>;
   onSave(values: NewWorkItem): Promise<void>;
   onDelete(): Promise<void>;
   onClose(): void;

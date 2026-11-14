@@ -8,7 +8,7 @@ interface NotesSectionProps {
   loadNotes(itemId: string): Promise<Note[]>;
   onAdd(itemId: string, body: string): Promise<Note>;
   onUpdate(id: string, body: string): Promise<Note>;
-  onDelete(itemId: string, id: string): Promise<void>;
+  onDelete(id: string): Promise<void>;
 }
 
 const smallButton = "rounded-md px-2 py-1 text-xs font-bold hover:bg-surface";
@@ -166,7 +166,7 @@ export function NotesSection({ itemId, loadNotes, onAdd, onUpdate, onDelete }: N
                           type="button"
                           disabled={busy}
                           onClick={() =>
-                            void run(() => onDelete(itemId, note.id)).then(() => setDeletingId(null))
+                            void run(() => onDelete(note.id)).then(() => setDeletingId(null))
                           }
                           className="rounded-md bg-brand-red px-2 py-1 font-bold text-white hover:bg-brand-red-dark"
                         >

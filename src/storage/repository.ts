@@ -44,8 +44,8 @@ export interface Repository {
   addNote(itemId: string, body: string): Promise<Note>;
   updateNote(id: string, body: string): Promise<Note>;
   deleteNote(id: string): Promise<void>;
-  /** Number of notes per item id, for every item in a project (items with none are omitted). */
-  noteCounts(projectId: string): Promise<Record<string, number>>;
+  /** Every note on every item in a project, oldest first. */
+  listProjectNotes(projectId: string): Promise<Note[]>;
 
   exportData(): Promise<StoredData>;
   importData(data: unknown): Promise<void>;

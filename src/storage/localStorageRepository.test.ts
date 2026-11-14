@@ -229,15 +229,15 @@ describe("notes", () => {
     expect((await repo.exportData()).notes).toEqual([]);
   });
 
-  it("counts notes per item within a project", async () => {
+  it("lists every note in a project, and only that project's", async () => {
     const { p, a, b } = await setup();
     await repo.addNote(a.id, "1");
-    await repo.addNote(a.id, "2");
+    await repo.addNote(b.id, "2");
     const other = await repo.createProject({ key: "OT", name: "Other" });
     const x = await repo.createItem(other.id, { title: "X" });
     await repo.addNote(x.id, "elsewhere");
-    expect(await repo.noteCounts(p.id)).toEqual({ [a.id]: 2 });
-    expect(b.id in (await repo.noteCounts(p.id))).toBe(false);
+    expect((await repo.listProjectNotes(p.id)).map((n) => n.body).sort()).toEqual(["1", "2"]);
+    expect((await repo.listProjectNotes(other.id)).map((n) => n.body)).toEqual(["elsewhere"]);
   });
 
   it("keeps notes through export and import", async () => {
