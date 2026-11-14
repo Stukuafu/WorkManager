@@ -153,4 +153,67 @@ describe("App projects flow", () => {
     expect(screen.queryByText("2 notes")).not.toBeInTheDocument();
     expect(screen.queryByText("Needs notes")).not.toBeInTheDocument();
   });
+
+  it("builds a story with tasks, shows progress, and keeps tasks when the story is deleted", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(await screen.findByRole("button", { name: "New project" }));
+    await user.type(screen.getByLabelText("Name"), "Work Manager");
+    await user.click(screen.getByRole("button", { name: "Create project" }));
+
+    // Create a story.
+    await user.click(await screen.findByRole("button", { name: "New item" }));
+    await user.type(screen.getByLabelText("Title"), "Checkout");
+    await user.selectOptions(screen.getByLabelText("Type"), "story");
+    await user.click(screen.getByRole("button", { name: "Create item" }));
+
+    // Open it and add two tasks from the story panel.
+    await user.click(await screen.findByRole("button", { name: "Checkout" }));
+    await user.type(await screen.findByLabelText("Add a task"), "Pay button{Enter}");
+    await user.type(screen.getByLabelText("Add a task"), "Receipt email{Enter}");
+    expect(await screen.findByRole("heading", { name: "Tasks (2)" })).toBeInTheDocument();
+
+    // Finish one task from the story panel: progress updates.
+    await user.selectOptions(within(screen.getByRole("dialog")).getByLabelText("Status of WM-2"), "done");
+    expect(await screen.findByText("1 of 2 done")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Close panel" }));
+
+    // List shows the compact progress and the parent chip on tasks; filter by story works.
+    expect(screen.getByRole("progressbar", { name: "Progress of WM-1" })).toHaveAttribute("aria-valuenow", "50");
+    expect(screen.getAllByText("Part of").length).toBe(2);
+    await user.selectOptions(screen.getByLabelText("Filter by story"), "WM-1 · Checkout");
+    expect(screen.getByText("Showing 2 of 3 items")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Clear filters" }));
+
+    // Open a task, jump to its story.
+    await user.click(screen.getByRole("button", { name: "Pay button" }));
+    await user.click(await screen.findByRole("button", { name: "WM-1 · Checkout" }));
+    expect(await screen.findByRole("heading", { name: "Tasks (2)" })).toBeInTheDocument();
+
+    // Deleting the story keeps the tasks.
+    await user.click(screen.getAllByRole("button", { name: "Delete" })[0]);
+    await user.click(screen.getByRole("button", { name: "Yes, delete" }));
+    expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Pay button" })).toBeInTheDocument();
+    expect(screen.queryByText("Part of")).not.toBeInTheDocument();
+  });
+
+  it("explains why a story with tasks cannot become a task", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(await screen.findByRole("button", { name: "New project" }));
+    await user.type(screen.getByLabelText("Name"), "Work Manager");
+    await user.click(screen.getByRole("button", { name: "Create project" }));
+    await user.click(await screen.findByRole("button", { name: "New item" }));
+    await user.type(screen.getByLabelText("Title"), "Checkout");
+    await user.selectOptions(screen.getByLabelText("Type"), "story");
+    await user.click(screen.getByRole("button", { name: "Create item" }));
+    await user.click(await screen.findByRole("button", { name: "Checkout" }));
+    await user.type(await screen.findByLabelText("Add a task"), "One{Enter}");
+    await screen.findByRole("heading", { name: "Tasks (1)" });
+
+    await user.selectOptions(screen.getAllByLabelText("Type")[0], "task");
+    await user.click(screen.getByRole("button", { name: "Save changes" }));
+    expect(await screen.findByText(/still has 1 task/)).toBeInTheDocument();
+  });
 });

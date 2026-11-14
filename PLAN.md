@@ -135,6 +135,8 @@ Each milestone ends with something you can click through.
 
 - **Notes:** free-text notes on each item (add, edit, delete). Stored as `Note { id, itemId, body, createdAt, updatedAt }`. Storage schema is now **version 2**; version 1 data and backups are upgraded automatically (they simply have no notes). Deleting an item deletes its notes.
 
+- **Stories with tasks:** `WorkItem.parentId`. Only stories can have children (tasks or bugs); stories cannot nest; parent and child must share a project. A story's progress is calculated from its tasks (done / total); its own status stays manual. Deleting a story keeps its tasks and unlinks them. A story with tasks cannot be changed to another type. Schema is now **version 3**; versions 1 and 2 upgrade automatically.
+
 ## 8. Out of scope for the PoC (possible later)
 
 Sprints and backlog, time tracking and estimates, dashboards and burndown, custom workflows, multi-user accounts and assignees, notifications, attachments, a backend (Supabase or a Node API), and dark mode.

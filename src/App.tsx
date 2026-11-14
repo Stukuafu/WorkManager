@@ -10,7 +10,9 @@ import { DataFooter } from "./components/DataFooter";
 import { ItemDialog } from "./components/ItemDialog";
 import { ItemPanel } from "./components/ItemPanel";
 import { ListView } from "./components/ListView";
-import type { Status } from "./domain/types";
+import { storiesIn } from "./domain/hierarchy";
+import { formatItemKey } from "./domain/keys";
+import type { Status, WorkItem } from "./domain/types";
 import { selectActiveProject, useAppStore } from "./store/appStore";
 
 export default function App() {
@@ -38,6 +40,10 @@ export default function App() {
   const [creatingItem, setCreatingItem] = useState(false);
   const [openItemId, setOpenItemId] = useState<string | null>(null);
   const openItem = items.find((i) => i.id === openItemId);
+  const changeStatus = useCallback(
+    (item: WorkItem, status: Status) => updateItem(item.id, { status }).then(() => undefined),
+    [updateItem],
+  );
   const [view, setView] = useState<"list" | "board">("list");
   const [actionError, setActionError] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -180,6 +186,10 @@ export default function App() {
 
       {creatingItem && activeProject && (
         <ItemDialog
+          parentOptions={storiesIn(items).map((s) => ({
+            id: s.id,
+            label: `${formatItemKey(activeProject.key, s.number)} · ${s.title}`,
+          }))}
           onCancel={() => setCreatingItem(false)}
           onSubmit={async (values) => {
             await createItem(values);
@@ -192,6 +202,12 @@ export default function App() {
         <ItemPanel
           projectKey={activeProject.key}
           item={openItem}
+          items={items}
+          onOpenItem={setOpenItemId}
+          onAddTask={async (storyId, title) => {
+            await createItem({ title, type: "task", parentId: storyId });
+          }}
+          onStatusChange={changeStatus}
           loadHistory={loadHistory}
           loadNotes={loadNotes}
           onAddNote={addNote}

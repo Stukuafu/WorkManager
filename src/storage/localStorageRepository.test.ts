@@ -250,6 +250,80 @@ describe("notes", () => {
   });
 });
 
+describe("stories and tasks", () => {
+  async function setup() {
+    const p = await repo.createProject({ key: "WM", name: "Work Manager" });
+    const story = await repo.createItem(p.id, { title: "Story", type: "story" });
+    const task = await repo.createItem(p.id, { title: "Task", parentId: story.id });
+    return { p, story, task };
+  }
+
+  it("creates a task under a story, and a bug too", async () => {
+    const { p, story, task } = await setup();
+    const bug = await repo.createItem(p.id, { title: "Bug", type: "bug", parentId: story.id });
+    expect(task.parentId).toBe(story.id);
+    expect(bug.parentId).toBe(story.id);
+  });
+
+  it("rejects invalid parents on create", async () => {
+    const { p, task } = await setup();
+    await expect(repo.createItem(p.id, { title: "x", parentId: task.id })).rejects.toThrow(/Only stories/);
+    await expect(repo.createItem(p.id, { title: "x", parentId: "ghost" })).rejects.toThrow(/no longer exists/);
+    await expect(repo.createItem(p.id, { title: "x", type: "story", parentId: task.id })).rejects.toThrow(
+      /story can't belong/,
+    );
+    const other = await repo.createProject({ key: "OT", name: "Other" });
+    const story = (await repo.listItems(p.id)).find((i) => i.type === "story")!;
+    await expect(repo.createItem(other.id, { title: "x", parentId: story.id })).rejects.toThrow(/different project/);
+  });
+
+  it("moves a task to another story, and clears the link", async () => {
+    const { p, task } = await setup();
+    const second = await repo.createItem(p.id, { title: "Second", type: "story" });
+    expect((await repo.updateItem(task.id, { parentId: second.id })).parentId).toBe(second.id);
+    expect((await repo.updateItem(task.id, { parentId: undefined })).parentId).toBeUndefined();
+  });
+
+  it("leaves the link alone when other fields are updated", async () => {
+    const { story, task } = await setup();
+    expect((await repo.updateItem(task.id, { title: "Renamed", status: "done" })).parentId).toBe(story.id);
+  });
+
+  it("will not turn a story with tasks into a task", async () => {
+    const { story } = await setup();
+    await expect(repo.updateItem(story.id, { type: "task" })).rejects.toThrow(/still has 1 task/);
+  });
+
+  it("will not make a task with a parent into a story until it is unlinked", async () => {
+    const { task } = await setup();
+    await expect(repo.updateItem(task.id, { type: "story" })).rejects.toThrow(/story can't belong/);
+    const unlinked = await repo.updateItem(task.id, { type: "story", parentId: undefined });
+    expect(unlinked.type).toBe("story");
+  });
+
+  it("allows turning an empty story into a task", async () => {
+    const p = await repo.createProject({ key: "AB", name: "AB" });
+    const story = await repo.createItem(p.id, { title: "Empty", type: "story" });
+    expect((await repo.updateItem(story.id, { type: "task" })).type).toBe("task");
+  });
+
+  it("keeps the tasks, unlinked, when their story is deleted", async () => {
+    const { p, story, task } = await setup();
+    await repo.deleteItem(story.id);
+    const remaining = await repo.listItems(p.id);
+    expect(remaining.map((i) => i.id)).toEqual([task.id]);
+    expect(remaining[0].parentId).toBeUndefined();
+  });
+
+  it("round-trips parent links through export and import", async () => {
+    const { p, story, task } = await setup();
+    const exported = await repo.exportData();
+    const other = new LocalStorageRepository(new MemoryStorage());
+    await other.importData(JSON.parse(JSON.stringify(exported)));
+    expect((await other.listItems(p.id)).find((i) => i.id === task.id)?.parentId).toBe(story.id);
+  });
+});
+
 describe("export / import", () => {
   it("round-trips data", async () => {
     const p = await repo.createProject({ key: "WM", name: "Work Manager" });
@@ -282,7 +356,7 @@ describe("export / import", () => {
     expect((await repo.listProjects()).map((p) => p.name)).toEqual(["Old"]);
     await repo.createProject({ key: "NW", name: "New" });
     const saved = await repo.exportData();
-    expect(saved.version).toBe(2);
+    expect(saved.version).toBe(3);
     expect(saved.notes).toEqual([]);
   });
 

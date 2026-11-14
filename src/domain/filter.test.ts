@@ -23,11 +23,14 @@ const items = [
   item({ number: 1, title: "Login page", labels: ["ui"], priority: "high" }),
   item({ number: 2, title: "Fix crash", type: "bug", status: "in_progress", description: "Null pointer on save" }),
   item({ number: 3, title: "Write docs", status: "done", labels: ["docs", "ui"] }),
+  item({ number: 4, title: "Story", type: "story" }),
+  item({ number: 5, title: "Child one", parentId: "id-4" }),
+  item({ number: 6, title: "Child two", parentId: "id-4" }),
 ];
 
 describe("filterItems", () => {
   it("returns everything with default filters", () => {
-    expect(filterItems(items, DEFAULT_FILTERS, "WM")).toHaveLength(3);
+    expect(filterItems(items, DEFAULT_FILTERS, "WM")).toHaveLength(6);
   });
 
   it("filters by status, priority, type and label", () => {
@@ -35,6 +38,10 @@ describe("filterItems", () => {
     expect(filterItems(items, { ...DEFAULT_FILTERS, priority: "high" }, "WM").map((i) => i.number)).toEqual([1]);
     expect(filterItems(items, { ...DEFAULT_FILTERS, type: "bug" }, "WM").map((i) => i.number)).toEqual([2]);
     expect(filterItems(items, { ...DEFAULT_FILTERS, label: "ui" }, "WM").map((i) => i.number)).toEqual([1, 3]);
+  });
+
+  it("filters to the tasks of one story", () => {
+    expect(filterItems(items, { ...DEFAULT_FILTERS, parent: "id-4" }, "WM").map((i) => i.number)).toEqual([5, 6]);
   });
 
   it("searches key, title, description and labels case-insensitively", () => {
@@ -65,5 +72,6 @@ describe("helpers", () => {
     expect(hasActiveFilters(DEFAULT_FILTERS)).toBe(false);
     expect(hasActiveFilters({ ...DEFAULT_FILTERS, query: " x " })).toBe(true);
     expect(hasActiveFilters({ ...DEFAULT_FILTERS, query: "  " })).toBe(false);
+    expect(hasActiveFilters({ ...DEFAULT_FILTERS, parent: "x" })).toBe(true);
   });
 });

@@ -6,6 +6,7 @@ import {
   hasActiveFilters,
   type ItemFilters,
 } from "../domain/filter";
+import { storiesIn, storyProgress } from "../domain/hierarchy";
 import { formatItemKey } from "../domain/keys";
 import type { Status, WorkItem } from "../domain/types";
 import {
@@ -18,6 +19,7 @@ import {
 } from "../domain/workflow";
 import { LabelChip, PriorityBadge, TypeBadge } from "./Badges";
 import { NoteCount } from "./NoteCount";
+import { Progress } from "./Progress";
 
 interface ListViewProps {
   projectKey: string;
@@ -34,6 +36,8 @@ const filterSelect =
 export function ListView({ projectKey, items, noteCounts, onOpen, onStatusChange, onCreate }: ListViewProps) {
   const [filters, setFilters] = useState<ItemFilters>(DEFAULT_FILTERS);
   const labels = useMemo(() => collectLabels(items), [items]);
+  const stories = useMemo(() => storiesIn(items), [items]);
+  const byId = useMemo(() => new Map(items.map((i) => [i.id, i])), [items]);
   const visible = useMemo(
     () => filterItems(items, filters, projectKey).sort((a, b) => b.number - a.number),
     [items, filters, projectKey],
@@ -125,6 +129,21 @@ export function ListView({ projectKey, items, noteCounts, onOpen, onStatusChange
             ))}
           </select>
         )}
+        {stories.length > 0 && (
+          <select
+            aria-label="Filter by story"
+            value={filters.parent}
+            onChange={(e) => set("parent", e.target.value)}
+            className={filterSelect}
+          >
+            <option value="all">All stories</option>
+            {stories.map((st) => (
+              <option key={st.id} value={st.id}>
+                {formatItemKey(projectKey, st.number)} · {st.title}
+              </option>
+            ))}
+          </select>
+        )}
         {hasActiveFilters(filters) && (
           <button
             type="button"
@@ -171,6 +190,20 @@ export function ListView({ projectKey, items, noteCounts, onOpen, onStatusChange
                       >
                         {item.title}
                       </button>
+                      {item.parentId && byId.get(item.parentId) && (
+                        <span
+                          className="ml-2 inline-block rounded-md bg-tint-pink px-1.5 py-0.5 align-middle text-xs font-bold text-ink"
+                          title={`Part of ${byId.get(item.parentId)?.title}`}
+                        >
+                          <span className="sr-only">Part of </span>
+                          {formatItemKey(projectKey, byId.get(item.parentId)!.number)}
+                        </span>
+                      )}
+                      {item.type === "story" && (
+                        <span className="ml-2 align-middle">
+                          <Progress compact progress={storyProgress(items, item.id)} label={`Progress of ${key}`} />
+                        </span>
+                      )}
                       <span className="ml-2 align-middle">
                         <NoteCount count={noteCounts[item.id]} />
                       </span>

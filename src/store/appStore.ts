@@ -141,10 +141,10 @@ export function createAppStore(repo: Repository) {
       },
 
       async deleteItem(id) {
+        const projectId = requireActiveProject();
         await repo.deleteItem(id);
-        const noteCounts = { ...get().noteCounts };
-        delete noteCounts[id];
-        set({ items: get().items.filter((i) => i.id !== id), noteCounts });
+        // Reload: deleting a story also unlinks its tasks.
+        await loadItems(projectId);
       },
 
       async exportData() {

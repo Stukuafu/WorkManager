@@ -19,7 +19,7 @@ const item = {
 };
 const note = { id: "n1", itemId: "i1", body: "hello", createdAt: "t", updatedAt: "t" };
 const valid = () => ({
-  version: 2,
+  version: 3,
   projects: [{ ...project }],
   items: [{ ...item }],
   statusChanges: [{ id: "c1", itemId: "i1", from: null, to: "todo", at: "t" }],
@@ -46,9 +46,24 @@ describe("parseStoredData", () => {
   it("migrates version 1 data (no notes) to the current version", () => {
     const { notes: _notes, ...v1 } = valid();
     const result = parseStoredData({ ...v1, version: 1 });
-    expect(result.version).toBe(2);
+    expect(result.version).toBe(3);
     expect(result.notes).toEqual([]);
     expect(result.items).toEqual(valid().items);
+  });
+
+  it("migrates version 2 data (notes, no parent links) to the current version", () => {
+    const result = parseStoredData({ ...valid(), version: 2 });
+    expect(result.version).toBe(3);
+    expect(result.notes).toHaveLength(1);
+  });
+
+  it("keeps valid parent links", () => {
+    const data = valid();
+    data.items.push(
+      { ...item, id: "s1", number: 2, type: "story" },
+      { ...item, id: "t1", number: 3, parentId: "s1" } as (typeof item) & { parentId: string },
+    );
+    expect(parseStoredData(data).items.find((i) => i.id === "t1")?.parentId).toBe("s1");
   });
 
   it("drops notes for items that do not exist", () => {
@@ -73,6 +88,10 @@ describe("parseStoredData", () => {
     ["labels not a list", (d) => ((d.items[0] as Record<string, unknown>).labels = "x"), /labels/],
     ["bad status change", (d) => ((d.statusChanges[0] as Record<string, unknown>).to = "nope"), /"to"/],
     ["future version", (d) => (d.version = 99), /version/],
+    ["parent that does not exist", (d) => ((d.items[0] as Record<string, unknown>).parentId = "ghost"), /no longer exists/],
+    ["parent that is not a story", (d) => d.items.push({ ...item, id: "t2", number: 2, parentId: "i1" } as typeof item), /Only stories/],
+    ["story with a parent", (d) => d.items.push({ ...item, id: "s2", number: 2, type: "story", parentId: "i1" } as typeof item), /story can't belong/],
+    ["non-text parent id", (d) => ((d.items[0] as Record<string, unknown>).parentId = 5), /parentId/],
     ["empty note", (d) => (d.notes[0].body = "   "), /must not be empty/],
     ["overlong note", (d) => (d.notes[0].body = "x".repeat(10_001)), /too long/],
     ["non-text note body", (d) => ((d.notes[0] as Record<string, unknown>).body = 5), /body/],

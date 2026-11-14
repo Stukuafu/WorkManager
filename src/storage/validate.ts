@@ -1,3 +1,4 @@
+import { parentError } from "../domain/hierarchy";
 import { isValidProjectKey } from "../domain/keys";
 import { MAX_NOTE_LENGTH, type Note, type Project, type StatusChange, type WorkItem } from "../domain/types";
 import { ITEM_TYPES, PRIORITIES, STATUSES } from "../domain/workflow";
@@ -59,7 +60,8 @@ export function parseStoredData(raw: unknown): StoredData {
   if (typeof raw.version !== "number" || raw.version > SCHEMA_VERSION || raw.version < 1) {
     fail(`Unsupported data version: ${String(raw.version)}`);
   }
-  // Version 1 had no notes; everything else is unchanged, so migrating is just defaulting them.
+  // Older versions only lack newer optional data: v1 had no notes, v1-v2 had no parent links.
+  // Migrating is just defaulting those, so nothing else needs converting.
 
   const projects: Project[] = list(raw, "projects").map((entry, i) => {
     const where = `Project ${i + 1}`;
@@ -107,6 +109,7 @@ export function parseStoredData(raw: unknown): StoredData {
       priority: oneOf(entry, "priority", PRIORITIES, where),
       labels: labels as string[],
       dueDate: optStr(entry, "dueDate", where),
+      parentId: optStr(entry, "parentId", where),
       order: entry.order,
       createdAt: str(entry, "createdAt", where),
       updatedAt: str(entry, "updatedAt", where),
@@ -114,6 +117,11 @@ export function parseStoredData(raw: unknown): StoredData {
     };
   });
   if (new Set(items.map((i) => i.id)).size !== items.length) fail("Duplicate item ids");
+
+  items.forEach((entry, i) => {
+    const message = parentError(items, entry, entry.parentId);
+    if (message) fail(`Item ${i + 1}: ${message}`);
+  });
 
   // Never let a project counter fall behind its items.
   for (const project of projects) {

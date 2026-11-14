@@ -11,9 +11,16 @@ import {
 } from "../domain/workflow";
 import { inputClass } from "./Modal";
 
+export interface ParentOption {
+  id: string;
+  label: string;
+}
+
 interface ItemFormProps {
   /** Present when editing an existing item. */
   item?: WorkItem;
+  /** Stories this item could belong to. */
+  parentOptions?: ParentOption[];
   onSubmit(values: NewWorkItem): Promise<void>;
   onDelete?(): Promise<void>;
   onCancel(): void;
@@ -21,7 +28,14 @@ interface ItemFormProps {
 }
 
 /** Fields shared by the "new item" dialog and the item detail panel. */
-export function ItemForm({ item, onSubmit, onDelete, onCancel, cancelLabel = "Cancel" }: ItemFormProps) {
+export function ItemForm({
+  item,
+  parentOptions = [],
+  onSubmit,
+  onDelete,
+  onCancel,
+  cancelLabel = "Cancel",
+}: ItemFormProps) {
   const id = useId();
   const [title, setTitle] = useState(item?.title ?? "");
   const [description, setDescription] = useState(item?.description ?? "");
@@ -30,6 +44,7 @@ export function ItemForm({ item, onSubmit, onDelete, onCancel, cancelLabel = "Ca
   const [status, setStatus] = useState<Status>(item?.status ?? "todo");
   const [labels, setLabels] = useState(item?.labels.join(", ") ?? "");
   const [dueDate, setDueDate] = useState(item?.dueDate ?? "");
+  const [parentId, setParentId] = useState(item?.parentId ?? "");
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -61,6 +76,8 @@ export function ItemForm({ item, onSubmit, onDelete, onCancel, cancelLabel = "Ca
         status,
         labels: parseLabels(labels),
         dueDate: dueDate || undefined,
+        // Stories cannot have a parent; an empty choice clears any existing link.
+        parentId: type === "story" ? undefined : parentId || undefined,
       }),
     );
   }
@@ -148,6 +165,27 @@ export function ItemForm({ item, onSubmit, onDelete, onCancel, cancelLabel = "Ca
             </select>
           </div>
         </div>
+
+        {type !== "story" && parentOptions.length > 0 && (
+          <div className={field}>
+            <label htmlFor={`${id}-parent`} className={label}>
+              Parent story
+            </label>
+            <select
+              id={`${id}-parent`}
+              value={parentId}
+              onChange={(e) => setParentId(e.target.value)}
+              className={inputClass}
+            >
+              <option value="">None</option>
+              {parentOptions.map((o) => (
+                <option key={o.id} value={o.id}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
         <div className={`${field} grid grid-cols-2 gap-3`}>
           <div>

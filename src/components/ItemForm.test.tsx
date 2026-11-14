@@ -93,4 +93,46 @@ describe("ItemForm", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("Boom");
     expect(screen.getByRole("button", { name: "Save changes" })).toBeEnabled();
   });
+
+  describe("parent story", () => {
+    const options = [
+      { id: "s1", label: "WM-1 · Checkout" },
+      { id: "s2", label: "WM-2 · Search" },
+    ];
+
+    it("lets a task choose a parent story and submits it", async () => {
+      const user = userEvent.setup();
+      const onSubmit = vi.fn().mockResolvedValue(undefined);
+      render(<ItemForm parentOptions={options} onSubmit={onSubmit} onCancel={() => {}} />);
+      await user.type(screen.getByLabelText("Title"), "Pay button");
+      await user.selectOptions(screen.getByLabelText("Parent story"), "s2");
+      await user.click(screen.getByRole("button", { name: "Create item" }));
+      expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ parentId: "s2", type: "task" }));
+    });
+
+    it("hides the field for stories and never submits a parent for them", async () => {
+      const user = userEvent.setup();
+      const onSubmit = vi.fn().mockResolvedValue(undefined);
+      render(<ItemForm item={{ ...existing, type: "task", parentId: "s1" }} parentOptions={options} onSubmit={onSubmit} onCancel={() => {}} />);
+      expect(screen.getByLabelText("Parent story")).toHaveValue("s1");
+      await user.selectOptions(screen.getByLabelText("Type"), "story");
+      expect(screen.queryByLabelText("Parent story")).not.toBeInTheDocument();
+      await user.click(screen.getByRole("button", { name: "Save changes" }));
+      expect(onSubmit.mock.calls[0][0].parentId).toBeUndefined();
+    });
+
+    it("clears the parent when None is chosen", async () => {
+      const user = userEvent.setup();
+      const onSubmit = vi.fn().mockResolvedValue(undefined);
+      render(<ItemForm item={{ ...existing, type: "task", parentId: "s1" }} parentOptions={options} onSubmit={onSubmit} onCancel={() => {}} />);
+      await user.selectOptions(screen.getByLabelText("Parent story"), "");
+      await user.click(screen.getByRole("button", { name: "Save changes" }));
+      expect(onSubmit.mock.calls[0][0]).toHaveProperty("parentId", undefined);
+    });
+
+    it("hides the field when there are no stories", () => {
+      render(<ItemForm onSubmit={vi.fn()} onCancel={() => {}} />);
+      expect(screen.queryByLabelText("Parent story")).not.toBeInTheDocument();
+    });
+  });
 });

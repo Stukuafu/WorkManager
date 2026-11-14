@@ -1,4 +1,5 @@
 import { planMove } from "../domain/board";
+import { childrenOf, parentError } from "../domain/hierarchy";
 import { isValidProjectKey, normalizeProjectKey } from "../domain/keys";
 import {
   MAX_NOTE_LENGTH,
@@ -120,6 +121,9 @@ export class LocalStorageRepository implements Repository {
     if (!PRIORITIES.includes(priority)) throw new RepositoryError(`Invalid priority: ${priority}`);
     if (!ITEM_TYPES.includes(type)) throw new RepositoryError(`Invalid type: ${type}`);
 
+    const parentProblem = parentError(data.items, { type, projectId }, input.parentId);
+    if (parentProblem) throw new RepositoryError(parentProblem);
+
     const timestamp = now();
     const inColumn = data.items.filter((i) => i.projectId === projectId && i.status === status);
     const item: WorkItem = {
@@ -133,6 +137,7 @@ export class LocalStorageRepository implements Repository {
       priority,
       labels: input.labels ?? [],
       dueDate: input.dueDate,
+      parentId: input.parentId,
       order: inColumn.length === 0 ? 0 : Math.max(...inColumn.map((i) => i.order)) + 1,
       createdAt: timestamp,
       updatedAt: timestamp,
@@ -166,6 +171,19 @@ export class LocalStorageRepository implements Repository {
       throw new RepositoryError(`Invalid type: ${patch.type}`);
     }
 
+    const nextType = patch.type ?? item.type;
+    const nextParentId = "parentId" in patch ? patch.parentId : item.parentId;
+    const parentProblem = parentError(data.items, { type: nextType, projectId: item.projectId }, nextParentId);
+    if (parentProblem) throw new RepositoryError(parentProblem);
+    if (item.type === "story" && nextType !== "story") {
+      const count = childrenOf(data.items, item.id).length;
+      if (count > 0) {
+        throw new RepositoryError(
+          `This story still has ${count} ${count === 1 ? "task" : "tasks"}. Move or delete ${count === 1 ? "it" : "them"} before changing the type.`,
+        );
+      }
+    }
+
     const timestamp = now();
     const previousStatus = item.status;
     Object.assign(item, patch, {
@@ -197,6 +215,12 @@ export class LocalStorageRepository implements Repository {
 
   async deleteItem(id: string): Promise<void> {
     const data = this.load();
+    // Tasks of a deleted story are kept, just no longer linked.
+    const timestamp = now();
+    for (const child of childrenOf(data.items, id)) {
+      child.parentId = undefined;
+      child.updatedAt = timestamp;
+    }
     data.items = data.items.filter((i) => i.id !== id);
     data.statusChanges = data.statusChanges.filter((c) => c.itemId !== id);
     data.notes = data.notes.filter((n) => n.itemId !== id);

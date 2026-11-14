@@ -7,6 +7,8 @@ export interface ItemFilters {
   priority: Priority | "all";
   type: ItemType | "all";
   label: string | "all";
+  /** Only tasks of this story (by story id). */
+  parent: string | "all";
 }
 
 export const DEFAULT_FILTERS: ItemFilters = {
@@ -15,6 +17,7 @@ export const DEFAULT_FILTERS: ItemFilters = {
   priority: "all",
   type: "all",
   label: "all",
+  parent: "all",
 };
 
 export function hasActiveFilters(filters: ItemFilters): boolean {
@@ -23,7 +26,8 @@ export function hasActiveFilters(filters: ItemFilters): boolean {
     filters.status !== "all" ||
     filters.priority !== "all" ||
     filters.type !== "all" ||
-    filters.label !== "all"
+    filters.label !== "all" ||
+    filters.parent !== "all"
   );
 }
 
@@ -35,6 +39,7 @@ export function filterItems(items: WorkItem[], filters: ItemFilters, projectKey:
     if (filters.priority !== "all" && item.priority !== filters.priority) return false;
     if (filters.type !== "all" && item.type !== filters.type) return false;
     if (filters.label !== "all" && !item.labels.includes(filters.label)) return false;
+    if (filters.parent !== "all" && item.parentId !== filters.parent) return false;
     if (query) {
       const haystack = [
         formatItemKey(projectKey, item.number),

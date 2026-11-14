@@ -25,6 +25,8 @@ export interface WorkItem {
   priority: Priority;
   labels: string[];
   dueDate?: string;
+  /** The story this item belongs to. Only tasks and bugs can have one. */
+  parentId?: string;
   /** Position within a board column. */
   order: number;
   createdAt: string;
@@ -56,12 +58,12 @@ export type NewProject = Pick<Project, "key" | "name">;
 
 export type NewWorkItem = Pick<WorkItem, "title"> &
   Partial<
-    Pick<WorkItem, "description" | "type" | "status" | "priority" | "labels" | "dueDate">
+    Pick<WorkItem, "description" | "type" | "status" | "priority" | "labels" | "dueDate" | "parentId">
   >;
 
 export type WorkItemPatch = Partial<
   Pick<
     WorkItem,
-    "title" | "description" | "type" | "status" | "priority" | "labels" | "dueDate" | "order"
+    "title" | "description" | "type" | "status" | "priority" | "labels" | "dueDate" | "parentId" | "order"
   >
 >;

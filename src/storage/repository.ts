@@ -9,7 +9,7 @@ import type {
   WorkItemPatch,
 } from "../domain/types";
 
-export const SCHEMA_VERSION = 2;
+export const SCHEMA_VERSION = 3;
 
 export interface StoredData {
   version: number;

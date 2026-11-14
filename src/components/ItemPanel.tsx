@@ -1,15 +1,22 @@
 import { useEffect, useId, useState } from "react";
 import { formatItemKey } from "../domain/keys";
 import { cycleTime, formatDateTime } from "../domain/time";
-import type { NewWorkItem, Note, StatusChange, WorkItem } from "../domain/types";
+import { storiesIn } from "../domain/hierarchy";
+import type { NewWorkItem, Note, Status, StatusChange, WorkItem } from "../domain/types";
 import { STATUS_LABELS } from "../domain/workflow";
 import { Drawer } from "./Drawer";
 import { ItemForm } from "./ItemForm";
 import { NotesSection } from "./NotesSection";
+import { StoryTasks } from "./StoryTasks";
 
 interface ItemPanelProps {
   projectKey: string;
   item: WorkItem;
+  /** All items in the project, for parent/child lookups. */
+  items: WorkItem[];
+  onOpenItem(id: string): void;
+  onAddTask(storyId: string, title: string): Promise<void>;
+  onStatusChange(item: WorkItem, status: Status): Promise<void>;
   loadHistory(id: string): Promise<StatusChange[]>;
   loadNotes(itemId: string): Promise<Note[]>;
   onAddNote(itemId: string, body: string): Promise<Note>;
@@ -24,6 +31,10 @@ interface ItemPanelProps {
 export function ItemPanel({
   projectKey,
   item,
+  items,
+  onOpenItem,
+  onAddTask,
+  onStatusChange,
   loadHistory,
   loadNotes,
   onAddNote,
@@ -48,18 +59,50 @@ export function ItemPanel({
     };
   }, [loadHistory, item.id, item.updatedAt]);
 
+  const parent = item.parentId ? items.find((i) => i.id === item.parentId) : undefined;
+  const parentOptions = storiesIn(items, item.id).map((s) => ({
+    id: s.id,
+    label: `${formatItemKey(projectKey, s.number)} · ${s.title}`,
+  }));
+
   const cycle = cycleTime(item.createdAt, item.completedAt);
 
   return (
     <Drawer title={`${key} · Edit item`} titleId={`${id}-title`} onClose={onClose}>
+      {parent && (
+        <p className="mb-4 text-sm">
+          Part of{" "}
+          <button
+            type="button"
+            onClick={() => onOpenItem(parent.id)}
+            className="font-bold text-ink underline decoration-brand-red underline-offset-2 hover:text-brand-red"
+          >
+            {formatItemKey(projectKey, parent.number)} · {parent.title}
+          </button>
+        </p>
+      )}
+
       <ItemForm
         key={item.id}
         item={item}
+        parentOptions={parentOptions}
         onSubmit={onSave}
         onDelete={onDelete}
         onCancel={onClose}
         cancelLabel="Close"
       />
+
+      {item.type === "story" && (
+        <StoryTasks
+          key={`tasks-${item.id}`}
+          story={item}
+          projectKey={projectKey}
+          items={items}
+          onOpen={onOpenItem}
+          onAddTask={onAddTask}
+          onStatusChange={onStatusChange}
+        />
+      )}
 
       <NotesSection
         key={`notes-${item.id}`}

@@ -23,11 +23,13 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { type KeyboardEventHandler, type ReactNode, useMemo, useState } from "react";
 import { buildColumns, type Columns } from "../domain/board";
+import { storyProgress } from "../domain/hierarchy";
 import { formatItemKey } from "../domain/keys";
 import type { Status, WorkItem } from "../domain/types";
 import { STATUSES, STATUS_LABELS } from "../domain/workflow";
 import { LabelChip, PriorityBadge } from "./Badges";
 import { NoteCount } from "./NoteCount";
+import { Progress } from "./Progress";
 
 const STATUS_TINT: Record<Status, string> = {
   todo: "bg-tint-blue",
@@ -54,6 +56,11 @@ export function Board({ projectKey, items, noteCounts, onOpen, onMove }: BoardPr
 
   const itemsById = useMemo(() => new Map(items.map((i) => [i.id, i])), [items]);
   const columns = draft ?? buildColumns(items);
+
+  function parentKeyOf(item: WorkItem): string | undefined {
+    const parent = item.parentId ? itemsById.get(item.parentId) : undefined;
+    return parent ? formatItemKey(projectKey, parent.number) : undefined;
+  }
 
   const sensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 5 } }),
@@ -156,7 +163,15 @@ export function Board({ projectKey, items, noteCounts, onOpen, onMove }: BoardPr
             {columns[status].map((id) => {
               const item = itemsById.get(id);
               return item ? (
-                <Card key={id} item={item} noteCount={noteCounts[id]} projectKey={projectKey} onOpen={onOpen} />
+                <Card
+                  key={id}
+                  item={item}
+                  noteCount={noteCounts[id]}
+                  parentKey={parentKeyOf(item)}
+                  items={items}
+                  projectKey={projectKey}
+                  onOpen={onOpen}
+                />
               ) : null;
             })}
           </Column>
@@ -164,7 +179,14 @@ export function Board({ projectKey, items, noteCounts, onOpen, onMove }: BoardPr
       </div>
       <DragOverlay>
         {activeItem && (
-          <CardBody item={activeItem} noteCount={noteCounts[activeItem.id]} projectKey={projectKey} dragging />
+          <CardBody
+            item={activeItem}
+            noteCount={noteCounts[activeItem.id]}
+            parentKey={parentKeyOf(activeItem)}
+            items={items}
+            projectKey={projectKey}
+            dragging
+          />
         )}
       </DragOverlay>
     </DndContext>
@@ -207,11 +229,15 @@ function Column({
 function Card({
   item,
   noteCount,
+  parentKey,
+  items,
   projectKey,
   onOpen,
 }: {
   item: WorkItem;
   noteCount?: number;
+  parentKey?: string;
+  items: WorkItem[];
   projectKey: string;
   onOpen(item: WorkItem): void;
 }) {
@@ -231,6 +257,8 @@ function Card({
       <CardBody
         item={item}
         noteCount={noteCount}
+        parentKey={parentKey}
+        items={items}
         projectKey={projectKey}
         onOpen={onOpen}
         handle={
@@ -253,6 +281,8 @@ function Card({
 function CardBody({
   item,
   noteCount,
+  parentKey,
+  items,
   projectKey,
   onOpen,
   handle,
@@ -260,6 +290,8 @@ function CardBody({
 }: {
   item: WorkItem;
   noteCount?: number;
+  parentKey?: string;
+  items: WorkItem[];
   projectKey: string;
   onOpen?(item: WorkItem): void;
   handle?: ReactNode;
@@ -285,6 +317,19 @@ function CardBody({
         </button>
       ) : (
         <span className="mb-2 block text-sm font-bold text-ink">{item.title}</span>
+      )}
+      {(parentKey || item.type === "story") && (
+        <div className="mb-2 flex flex-wrap items-center gap-2">
+          {parentKey && (
+            <span className="rounded-md bg-tint-pink px-1.5 py-0.5 text-xs font-bold text-ink">
+              <span className="sr-only">Part of </span>
+              {parentKey}
+            </span>
+          )}
+          {item.type === "story" && (
+            <Progress compact progress={storyProgress(items, item.id)} label={`Progress of ${formatItemKey(projectKey, item.number)}`} />
+          )}
+        </div>
       )}
       <div className="flex flex-wrap items-center gap-1">
         <PriorityBadge priority={item.priority} />

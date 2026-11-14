@@ -17,6 +17,7 @@ npm run build   # type-check and build
 - Fixed workflow: To Do, In Progress, In Review, Done
 - List view with search and filters, and a drag-and-drop board (mouse, touch and keyboard)
 - Detail panel with status history, dates and time to complete
+- Stories with tasks: add tasks to a story (or link an existing task or bug to one), with a progress bar, parent chips, and a filter by story
 - Notes on each item (add, edit, delete), with note counts on the list and board
 - Backup: export and import all data as JSON, including notes (data lives in this browser only). Backups from earlier versions still import
 - Shortcuts: `C` new item, `/` search

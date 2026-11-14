@@ -32,6 +32,10 @@ function renderPanel(overrides: Partial<Parameters<typeof ItemPanel>[0]> = {}) {
   const props = {
     projectKey: "WM",
     item,
+    items: [item],
+    onOpenItem: vi.fn(),
+    onAddTask: vi.fn().mockResolvedValue(undefined),
+    onStatusChange: vi.fn().mockResolvedValue(undefined),
     loadHistory: vi.fn().mockResolvedValue(history),
     loadNotes: vi.fn().mockResolvedValue([]),
     onAddNote: vi.fn(),
@@ -95,5 +99,36 @@ describe("ItemPanel", () => {
     cleanup();
     render(<ItemPanel {...props} loadHistory={loadHistory} item={{ ...item, updatedAt: "2026-11-17T00:00:00.000Z" }} />);
     expect(loadHistory).toHaveBeenCalledTimes(2);
+  });
+
+  describe("stories and tasks", () => {
+    const story: WorkItem = { ...item, id: "s1", number: 1, type: "story", title: "Checkout", status: "todo", completedAt: undefined };
+    const child: WorkItem = { ...item, id: "t1", number: 2, type: "task", title: "Pay button", status: "todo", completedAt: undefined, parentId: "s1" };
+
+    it("shows the task list for a story, but not for other items", async () => {
+      renderPanel({ item: story, items: [story, child] });
+      expect(await screen.findByRole("heading", { name: "Tasks (1)" })).toBeInTheDocument();
+      cleanup();
+      renderPanel({ item: child, items: [story, child] });
+      expect(screen.queryByRole("heading", { name: /^Tasks/ })).not.toBeInTheDocument();
+    });
+
+    it("links a task back to its story", async () => {
+      const user = userEvent.setup();
+      const props = renderPanel({ item: child, items: [story, child] });
+      await user.click(screen.getByRole("button", { name: "WM-1 · Checkout" }));
+      expect(props.onOpenItem).toHaveBeenCalledWith("s1");
+    });
+
+    it("offers other stories as parents but not itself", () => {
+      const other: WorkItem = { ...story, id: "s2", number: 3, title: "Search" };
+      renderPanel({ item: story, items: [story, other] });
+      // A story has no parent field at all.
+      expect(screen.queryByLabelText("Parent story")).not.toBeInTheDocument();
+      cleanup();
+      renderPanel({ item: child, items: [story, other, child] });
+      const options = within(screen.getByLabelText("Parent story")).getAllByRole("option").map((o) => o.textContent);
+      expect(options).toEqual(["None", "WM-1 · Checkout", "WM-3 · Search"]);
+    });
   });
 });
